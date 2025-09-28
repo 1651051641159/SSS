@@ -117,7 +117,7 @@
                     <div class="size-option">
                         <h4>ธรรมดา</h4>
                         <p id="normal-price">50 บาท</p>
-                        <label><input type="checkbox" id="normal-size" value="1"> เลือก</label>
+                        <label><input type="radio" name="size" id="normal-size" value="normal" checked> เลือก</label>
                     </div>
                     <div class="quantity-controls">
                         <button onclick="decreaseQuantity()">-</button>
@@ -127,7 +127,7 @@
                     <div class="size-option">
                         <h4>พิเศษ</h4>
                         <p id="special-price">60 บาท</p>
-                        <label><input type="checkbox" id="special-size" value="1"> เลือก</label>
+                        <label><input type="radio" name="size" id="special-size" value="special"> เลือก</label>
                     </div>
                 </div>
             </div>
@@ -159,7 +159,7 @@
                 </div>
                 
                 <div class="option-group">
-                    <h4 class="option-title blue">ลูกชิ้น <span class="required">** เลือกได้หลายรายการ **</span></h4>
+                    <h4 class="option-title blue">ลูกชิ้น <span class="required">** เลือกได้สูงสุด 3 ชนิด **</span></h4>
                     <div class="option-item">
                         <label><input type="checkbox" name="meatball" value="ลูกชิ้นหมู" checked> ลูกชิ้นหมู</label>
                     </div>
@@ -231,10 +231,7 @@
             
             <div class="payment-section">
                 <h4>วิธีการชำระเงิน</h4>
-                <div class="payment-options">
-                    <label><input type="radio" name="payment" value="cash" checked> เงินสด</label>
-                    <label><input type="radio" name="payment" value="transfer"> โอนเงิน</label>
-                </div>
+                <p style="color: #666; font-style: italic;">พนักงานจะถามวิธีการชำระเงินหลังจากได้รับออเดอร์</p>
             </div>
             
             <button onclick="placeOrder()" class="order-btn">สั่งอาหาร</button>

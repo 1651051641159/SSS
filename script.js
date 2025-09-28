@@ -95,15 +95,28 @@ function selectMenuItem(menuName) {
     document.getElementById('normal-size').checked = true;
     document.getElementById('special-size').checked = false;
     
-    // รีเซ็ตตัวเลือก
-    document.querySelector('input[name="noodle"][value="เส้นเล็ก"]').checked = true;
+    // ซ่อน/แสดงส่วนเลือกเส้นสำหรับเกาเหลา
+    const noodleSection = document.querySelector('.option-group');
+    if (menuName === 'เกาเหลา') {
+        noodleSection.style.display = 'none';
+    } else {
+        noodleSection.style.display = 'block';
+        // รีเซ็ตตัวเลือกเส้น
+        document.querySelector('input[name="noodle"][value="เส้นเล็ก"]').checked = true;
+    }
     
-    // รีเซ็ต checkbox
-    document.querySelectorAll('input[name="meatball"]').forEach(cb => cb.checked = false);
+    // รีเซ็ต checkbox และเปิดใช้งานคืน
+    document.querySelectorAll('input[name="meatball"]').forEach(cb => {
+        cb.checked = false;
+        cb.disabled = false; // เปิดใช้งานคืนสำหรับออเดอร์ใหม่
+    });
     document.querySelector('input[name="meatball"][value="ลูกชิ้นหมู"]').checked = true;
     
     document.querySelectorAll('input[name="vegetable"]').forEach(cb => cb.checked = false);
     document.querySelector('input[name="vegetable"][value="ผักบุ้ง"]').checked = true;
+    
+    // ตรวจสอบการจำกัดลูกชิ้นหลังจากรีเซ็ต
+    limitMeatballSelection();
     
     document.getElementById('special-note').value = '';
     
@@ -143,48 +156,66 @@ function decreaseQuantity() {
 function calculateTotal() {
     if (!currentItem) return;
     
-    const normalSelected = document.getElementById('normal-size').checked;
-    const specialSelected = document.getElementById('special-size').checked;
-    
+    const sizeSelection = document.querySelector('input[name="size"]:checked');
     let total = 0;
-    if (normalSelected) {
-        total += currentItem.normalPrice * currentQuantity;
-    }
-    if (specialSelected) {
-        total += currentItem.specialPrice * currentQuantity;
+    
+    if (sizeSelection) {
+        if (sizeSelection.value === 'normal') {
+            total = currentItem.normalPrice * currentQuantity;
+        } else if (sizeSelection.value === 'special') {
+            total = currentItem.specialPrice * currentQuantity;
+        }
     }
     
     document.getElementById('item-total').textContent = total + ' บาท';
 }
 
+// จำกัดการเลือกลูกชิ้นไม่เกิน 3 ชนิด
+function limitMeatballSelection() {
+    const meatballCheckboxes = document.querySelectorAll('input[name="meatball"]');
+    const checkedMeatballs = document.querySelectorAll('input[name="meatball"]:checked');
+    
+    if (checkedMeatballs.length >= 3) {
+        meatballCheckboxes.forEach(cb => {
+            if (!cb.checked) {
+                cb.disabled = true;
+            }
+        });
+    } else {
+        meatballCheckboxes.forEach(cb => {
+            cb.disabled = false;
+        });
+    }
+}
+
 // เพิ่ม event listener สำหรับการเปลี่ยนแปลงขนาด
 document.addEventListener('DOMContentLoaded', function() {
-    const normalSizeCheckbox = document.getElementById('normal-size');
-    const specialSizeCheckbox = document.getElementById('special-size');
+    const sizeRadios = document.querySelectorAll('input[name="size"]');
     
-    if (normalSizeCheckbox) {
-        normalSizeCheckbox.addEventListener('change', calculateTotal);
-    }
+    sizeRadios.forEach(radio => {
+        radio.addEventListener('change', calculateTotal);
+    });
     
-    if (specialSizeCheckbox) {
-        specialSizeCheckbox.addEventListener('change', calculateTotal);
-    }
+    // เพิ่ม event listener สำหรับการจำกัดลูกชิ้น
+    const meatballCheckboxes = document.querySelectorAll('input[name="meatball"]');
+    meatballCheckboxes.forEach(cb => {
+        cb.addEventListener('change', limitMeatballSelection);
+    });
 });
 
 // ฟังก์ชันเพิ่มลงตะกร้า
 function addToCart() {
     if (!currentItem) return;
     
-    const normalSelected = document.getElementById('normal-size').checked;
-    const specialSelected = document.getElementById('special-size').checked;
+    const sizeSelection = document.querySelector('input[name="size"]:checked');
     
-    if (!normalSelected && !specialSelected) {
+    if (!sizeSelection) {
         alert('กรุณาเลือกขนาดอาหาร');
         return;
     }
     
     // รวบรวมตัวเลือกที่เลือก
-    const noodleType = document.querySelector('input[name="noodle"]:checked')?.value || '';
+    const noodleType = currentItem.name === 'เกาเหลา' ? 'ไม่มีเส้น' : (document.querySelector('input[name="noodle"]:checked')?.value || '');
     
     const selectedMeatballs = [];
     document.querySelectorAll('input[name="meatball"]:checked').forEach(cb => {
@@ -200,14 +231,17 @@ function addToCart() {
     
     // สร้างรายการสำหรับตะกร้า
     let total = 0;
-    if (normalSelected) total += currentItem.normalPrice * currentQuantity;
-    if (specialSelected) total += currentItem.specialPrice * currentQuantity;
+    if (sizeSelection.value === 'normal') {
+        total = currentItem.normalPrice * currentQuantity;
+    } else if (sizeSelection.value === 'special') {
+        total = currentItem.specialPrice * currentQuantity;
+    }
     
     const cartItem = {
         id: Date.now(),
         name: currentItem.name,
-        normalQty: normalSelected ? currentQuantity : 0,
-        specialQty: specialSelected ? currentQuantity : 0,
+        normalQty: sizeSelection.value === 'normal' ? currentQuantity : 0,
+        specialQty: sizeSelection.value === 'special' ? currentQuantity : 0,
         normalPrice: currentItem.normalPrice,
         specialPrice: currentItem.specialPrice,
         noodleType: noodleType,
@@ -268,6 +302,38 @@ function updateCartDisplay() {
     cartTotalElement.textContent = totalPrice + ' บาท';
 }
 
+// ฟังก์ชันสร้างหมายเลขออเดอร์แบบลำดับ
+function generateOrderNumber() {
+    // โหลดหมายเลขออเดอร์ล่าสุดจาก localStorage
+    let lastOrderNumber = localStorage.getItem('lastOrderNumber');
+    
+    if (lastOrderNumber === null) {
+        // ถ้าไม่มีในระบบ เริ่มจาก 0000
+        lastOrderNumber = 0;
+    } else {
+        lastOrderNumber = parseInt(lastOrderNumber);
+    }
+    
+    // เพิ่มหมายเลขขึ้น 1
+    lastOrderNumber += 1;
+    
+    // ถ้าเกิน 9999 ให้กลับไป 0000
+    if (lastOrderNumber > 9999) {
+        lastOrderNumber = 0;
+    }
+    
+    // บันทึกหมายเลขล่าสุดลง localStorage
+    localStorage.setItem('lastOrderNumber', lastOrderNumber.toString());
+    
+    // ส่งคืนตัวเลข (numeric) เพื่อให้ admin functions ทำงานถูกต้อง
+    return lastOrderNumber;
+}
+
+// ฟังก์ชันแปลงหมายเลขออเดอร์เป็นรูปแบบ 4 หลักสำหรับการแสดงผล
+function formatOrderId(orderId) {
+    return orderId.toString().padStart(4, '0');
+}
+
 // ฟังก์ชันสั่งอาหาร
 function placeOrder() {
     if (cart.length === 0) {
@@ -275,22 +341,21 @@ function placeOrder() {
         return;
     }
     
-    // เลือกวิธีการชำระเงิน
-    const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
-    const paymentText = paymentMethod === 'cash' ? 'เงินสด' : 'โอนเงิน';
-    
     // คำนวณราคารวม
     const totalAmount = cart.reduce((sum, item) => sum + item.total, 0);
     
-    // เก็บประวัติการสั่งซื้อ (ใช้ timestamp เป็น ID เพื่อหลีกเลี่ยงการซ้ำกัน)
+    // สร้างหมายเลขออเดอร์แบบลำดับ
+    const orderNumber = generateOrderNumber();
+    
+    // เก็บประวัติการสั่งซื้อ
     const order = {
-        id: Date.now(),
+        id: orderNumber, // ใช้หมายเลขลำดับแทน timestamp (เก็บเป็น numeric เพื่อ admin functions)
         timestamp: new Date(),
         items: [...cart],
-        paymentMethod: paymentMethod,
-        paymentText: paymentText,
+        paymentMethod: 'pending', // รอแอดมินถาม
+        paymentText: 'รอแอดมินถาม',
         total: totalAmount,
-        status: 'confirmed' // เพิ่มสถานะการสั่งซื้อ
+        status: 'pending_payment' // สถานะรอการชำระเงิน
     };
     
     orderHistory.push(order);
@@ -298,9 +363,9 @@ function placeOrder() {
     // บันทึกลง localStorage เพื่อให้คงอยู่ระหว่างการรีเฟรช
     saveOrderHistory();
     
-    // แปลง ID ให้เป็นรูปแบบสั้นๆ สำหรับแสดง  
-    const displayOrderId = String(order.id).slice(-4);
-    alert(`สั่งอาหารเรียบร้อยแล้ว!\nหมายเลขออเดอร์: #${displayOrderId}\nวิธีการชำระเงิน: ${paymentText}\nยอดรวม: ${totalAmount} บาท\nรอสักครู่อาหารจะมาเสิร์ฟ`);
+    // แสดงหมายเลขออเดอร์ 4 หลัก สำหรับ UI
+    const displayOrderId = formatOrderId(orderNumber);
+    alert(`สั่งอาหารเรียบร้อยแล้ว!\nหมายเลขออเดอร์: #${displayOrderId}\nยอดรวม: ${totalAmount} บาท\nพนักงานจะมาถามวิธีการชำระเงิน\nรอสักครู่อาหารจะมาเสิร์ฟ`);
     
     // รีเซ็ตตะกร้า
     cart = [];
@@ -604,13 +669,20 @@ function displayOrderHistory() {
             `;
         });
         
-        // แปลง ID ให้เป็นรูปแบบสั้นๆ สำหรับแสดง
-        const displayId = String(order.id).slice(-4);
+        // แสดงหมายเลขออเดอร์ในรูปแบบ 4 หลักสำหรับ UI
+        const displayId = formatOrderId(order.id);
         const orderStatus = order.status || 'confirmed'; // กรณีที่ไม่มี status
         
         // ปลอดภัยกับ timestamp ที่อาจเป็น string
         const orderTime = order.timestamp ? new Date(order.timestamp) : new Date();
         const timeStr = orderTime.toLocaleString('th-TH');
+        
+        const paymentButtons = order.status === 'pending_payment' ? `
+            <div class="payment-actions" style="margin-top: 10px;">
+                <button onclick="confirmPayment('${order.id}', 'cash')" class="payment-btn cash-btn">ยืนยันเงินสด</button>
+                <button onclick="confirmPayment('${order.id}', 'transfer')" class="payment-btn transfer-btn">ยืนยันโอนเงิน</button>
+            </div>
+        ` : '';
         
         orderElement.innerHTML = `
             <div class="order-header">
@@ -624,11 +696,25 @@ function displayOrderHistory() {
                 ${itemsHtml}
             </div>
             <div class="order-total">รวม: ${order.total} บาท</div>
-            <div class="order-status">สถานะ: ${orderStatus === 'confirmed' ? 'ยืนยันแล้ว' : 'รอดำเนินการ'}</div>
+            <div class="order-status">สถานะ: ${orderStatus === 'confirmed' ? 'ยืนยันแล้ว' : orderStatus === 'pending_payment' ? 'รอยืนยันการชำระเงิน' : 'รอดำเนินการ'}</div>
+            ${paymentButtons}
         `;
         
         orderListContainer.appendChild(orderElement);
     });
+}
+
+// ฟังก์ชันยืนยันการชำระเงิน
+function confirmPayment(orderId, paymentMethod) {
+    const orderIndex = orderHistory.findIndex(order => order.id.toString() === orderId.toString());
+    if (orderIndex !== -1) {
+        orderHistory[orderIndex].paymentMethod = paymentMethod;
+        orderHistory[orderIndex].paymentText = paymentMethod === 'cash' ? 'เงินสด' : 'โอนเงิน';
+        orderHistory[orderIndex].status = 'confirmed';
+        saveOrderHistory();
+        displayOrderHistory(); // รีเฟรชการแสดงผล
+        alert('ยืนยันการชำระเงินเรียบร้อยแล้ว');
+    }
 }
 
 function displaySalesSummary() {
@@ -643,20 +729,62 @@ function displaySalesSummary() {
         return;
     }
     
+    // เพิ่มตัวเลือกช่วงเวลา
+    const periodButtons = `
+        <div class="period-selector" style="margin-bottom: 20px;">
+            <button onclick="showSalesByPeriod('daily')" class="period-btn">รายวัน</button>
+            <button onclick="showSalesByPeriod('weekly')" class="period-btn">รายสัปดาห์</button>
+            <button onclick="showSalesByPeriod('monthly')" class="period-btn">รายเดือน</button>
+            <button onclick="showSalesByPeriod('all')" class="period-btn active">ทั้งหมด</button>
+        </div>
+    `;
+    
+    salesContainer.innerHTML = periodButtons + '<div id="sales-data"></div>';
+    showSalesByPeriod('all');
+}
+function showSalesByPeriod(period) {
+    // ลบ active class จากปุ่มทั้งหมด
+    document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    let filteredOrders = [...orderHistory];
+    const now = new Date();
+    
+    if (period === 'daily') {
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        filteredOrders = orderHistory.filter(order => {
+            const orderDate = new Date(order.timestamp);
+            return orderDate >= today;
+        });
+    } else if (period === 'weekly') {
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        filteredOrders = orderHistory.filter(order => {
+            const orderDate = new Date(order.timestamp);
+            return orderDate >= weekAgo;
+        });
+    } else if (period === 'monthly') {
+        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        filteredOrders = orderHistory.filter(order => {
+            const orderDate = new Date(order.timestamp);
+            return orderDate >= monthAgo;
+        });
+    }
+    
     // คำนวณสถิติ
-    const totalOrders = orderHistory.length;
-    const totalRevenue = orderHistory.reduce((sum, order) => sum + order.total, 0);
-    const averageOrderValue = Math.round(totalRevenue / totalOrders);
+    const totalOrders = filteredOrders.length;
+    const totalRevenue = filteredOrders.reduce((sum, order) => sum + order.total, 0);
+    const averageOrderValue = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
     
     // นับจำนวนการชำระแต่ละประเภท
-    const cashOrders = orderHistory.filter(order => order.paymentMethod === 'cash').length;
-    const transferOrders = orderHistory.filter(order => order.paymentMethod === 'transfer').length;
-    const cashRevenue = orderHistory.filter(order => order.paymentMethod === 'cash').reduce((sum, order) => sum + order.total, 0);
-    const transferRevenue = orderHistory.filter(order => order.paymentMethod === 'transfer').reduce((sum, order) => sum + order.total, 0);
+    const cashOrders = filteredOrders.filter(order => order.paymentMethod === 'cash').length;
+    const transferOrders = filteredOrders.filter(order => order.paymentMethod === 'transfer').length;
+    const pendingOrders = filteredOrders.filter(order => order.paymentMethod === 'pending').length;
+    const cashRevenue = filteredOrders.filter(order => order.paymentMethod === 'cash').reduce((sum, order) => sum + order.total, 0);
+    const transferRevenue = filteredOrders.filter(order => order.paymentMethod === 'transfer').reduce((sum, order) => sum + order.total, 0);
     
     // นับยอดขายแต่ละเมนู
     const menuSales = {};
-    orderHistory.forEach(order => {
+    filteredOrders.forEach(order => {
         order.items.forEach(item => {
             if (!menuSales[item.name]) {
                 menuSales[item.name] = { qty: 0, revenue: 0 };
@@ -671,22 +799,29 @@ function displaySalesSummary() {
     const sortedMenuSales = Object.entries(menuSales)
         .sort((a, b) => b[1].revenue - a[1].revenue);
     
+    const periodText = {
+        'daily': 'วันนี้',
+        'weekly': 'สัปดาห์นี้',
+        'monthly': 'เดือนนี้',
+        'all': 'ทั้งหมด'
+    };
+    
     // สร้าง HTML
     const summaryHTML = `
         <div class="summary-stats">
-            <h3>สถิติรวม</h3>
+            <h3>สถิติรวม (${periodText[period]})</h3>
             <div class="stats-grid">
                 <div class="stat-item">
                     <div class="stat-value">${totalOrders}</div>
-                    <div class="stat-label">ออเดอร์ทั้งหมด</div>
+                    <div class="stat-label">จำนวนออเดอร์</div>
                 </div>
                 <div class="stat-item">
                     <div class="stat-value">${totalRevenue.toLocaleString()}</div>
-                    <div class="stat-label">รายได้รวม (บาท)</div>
+                    <div class="stat-label">ยอดขาย (บาท)</div>
                 </div>
                 <div class="stat-item">
                     <div class="stat-value">${averageOrderValue}</div>
-                    <div class="stat-label">มูลค่าเฉลี่ย/ออเดอร์ (บาท)</div>
+                    <div class="stat-label">ยอดเฉลี่ยต่อออเดอร์</div>
                 </div>
             </div>
         </div>
@@ -697,36 +832,46 @@ function displaySalesSummary() {
                 <div class="payment-item">
                     <div class="payment-type">เงินสด</div>
                     <div class="payment-details">
-                        <span>${cashOrders} ออเดอร์</span>
-                        <span>${cashRevenue.toLocaleString()} บาท</span>
+                        <span>จำนวน: ${cashOrders} ครั้ง</span>
+                        <span>ยอดเงิน: ${cashRevenue.toLocaleString()} บาท</span>
                     </div>
                 </div>
                 <div class="payment-item">
                     <div class="payment-type">โอนเงิน</div>
                     <div class="payment-details">
-                        <span>${transferOrders} ออเดอร์</span>
-                        <span>${transferRevenue.toLocaleString()} บาท</span>
+                        <span>จำนวน: ${transferOrders} ครั้ง</span>
+                        <span>ยอดเงิน: ${transferRevenue.toLocaleString()} บาท</span>
                     </div>
                 </div>
+                ${pendingOrders > 0 ? `
+                <div class="payment-item">
+                    <div class="payment-type">รอยืนยัน</div>
+                    <div class="payment-details">
+                        <span>จำนวน: ${pendingOrders} ครั้ง</span>
+                    </div>
+                </div>
+                ` : ''}
             </div>
         </div>
         
+        ${sortedMenuSales.length > 0 ? `
         <div class="menu-sales-stats">
-            <h3>ยอดขายแต่ละเมนู</h3>
+            <h3>เมนูยอดนิยม</h3>
             <div class="menu-sales-list">
-                ${sortedMenuSales.map(([menuName, stats], index) => `
+                ${sortedMenuSales.slice(0, 10).map((menu, index) => `
                     <div class="menu-sales-item">
-                        <div class="rank">#${index + 1}</div>
-                        <div class="menu-name">${menuName}</div>
+                        <div class="rank">${index + 1}</div>
+                        <div class="menu-name">${menu[0]}</div>
                         <div class="menu-stats">
-                            <span>${stats.qty} จาน</span>
-                            <span>${stats.revenue.toLocaleString()} บาท</span>
+                            <div>ขาย: ${menu[1].qty} ชาม</div>
+                            <div>รายได้: ${menu[1].revenue.toLocaleString()} บาท</div>
                         </div>
                     </div>
                 `).join('')}
             </div>
         </div>
+        ` : ''}
     `;
     
-    salesContainer.innerHTML = summaryHTML;
+    document.getElementById('sales-data').innerHTML = summaryHTML;
 }
