@@ -1,0 +1,732 @@
+// ตัวแปรสำหรับเก็บข้อมูล
+let currentItem = null;
+let cart = [];
+let currentQuantity = 1;
+let isAdminLoggedIn = false;
+let menuItems = [
+    { id: 1, name: 'ก๋วยเตี๋ยวน้ำใส', price: 50 },
+    { id: 2, name: 'ก๋วยเตี๋ยวต้มยำ', price: 50 },
+    { id: 3, name: 'ก๋วยเตี๋ยวเย็นตาโฟ', price: 50 },
+    { id: 4, name: 'ก๋วยเตี๋ยวแห้ง', price: 50 },
+    { id: 5, name: 'ลูกชิ้นลวก หมู/เนื้อ/เร็น', price: 50 },
+    { id: 6, name: 'เกาเหลา', price: 50 }
+];
+let editingMenuId = null;
+let orderHistory = [];
+
+// เพิ่มข้อมูลตัวอย่างสำหรับทดสอบ (เฉพาะครั้งแรกที่ไม่มีข้อมูลใน localStorage)
+function initializeSampleData() {
+    // ตรวจสอบว่ามีข้อมูลใน localStorage หรือไม่
+    const saved = localStorage.getItem('orderHistory');
+    if (!saved || saved === '[]') {
+        // เพิ่มออเดอร์ตัวอย่าง 2 รายการเพื่อแสดงว่าระบบทำงาน
+        orderHistory.push({
+            id: Date.now() - 3600000, // ใช้ timestamp เป็น ID
+            timestamp: new Date(Date.now() - 3600000), // 1 ชั่วโมงที่แล้ว
+            items: [{
+                name: 'ก๋วยเตี๋ยวน้ำใส',
+                normalQty: 1,
+                specialQty: 0,
+                noodleType: 'เส้นเล็ก',
+                meatballs: ['ลูกชิ้นหมู'],
+                vegetables: ['ผักบุ้ง'],
+                note: '',
+                total: 50
+            }],
+            paymentMethod: 'cash',
+            paymentText: 'เงินสด',
+            total: 50,
+            status: 'confirmed'
+        });
+        
+        orderHistory.push({
+            id: Date.now() - 1800000,
+            timestamp: new Date(Date.now() - 1800000), // 30 นาทีที่แล้ว  
+            items: [{
+                name: 'ก๋วยเตี๋ยวต้มยำ',
+                normalQty: 0,
+                specialQty: 1,
+                noodleType: 'บะหมี่เหลือง',
+                meatballs: ['ลูกชิ้นเนื้อ', 'ลูกชิ้นเร็น'],
+                vegetables: ['กะหล่ำ'],
+                note: 'เผ็ดน้อย',
+                total: 60
+            }],
+            paymentMethod: 'transfer',
+            paymentText: 'โอนเงิน',
+            total: 60,
+            status: 'confirmed'
+        });
+        
+        // บันทึกข้อมูลตัวอย่างไว้ใน localStorage
+        saveOrderHistory();
+    }
+}
+
+// ฟังก์ชันแสดงหน้าเมนู
+function showMenuPage() {
+    document.getElementById('qr-page').classList.remove('active');
+    document.getElementById('menu-page').classList.add('active');
+}
+
+// ฟังก์ชันย้อนกลับหน้าแรก
+function goBackToQR() {
+    document.getElementById('menu-page').classList.remove('active');
+    document.getElementById('qr-page').classList.add('active');
+}
+
+// ฟังก์ชันเลือกเมนู
+function selectMenuItem(menuName) {
+    // กำหนดราคาคงที่: ธรรมดา 50 บาท พิเศษ 60 บาท
+    currentItem = {
+        name: menuName,
+        normalPrice: 50,
+        specialPrice: 60
+    };
+    
+    // อัพเดทหน้าเลือกตัวเลือก
+    document.getElementById('selected-menu-name').textContent = menuName;
+    document.getElementById('normal-price').textContent = '50 บาท';
+    document.getElementById('special-price').textContent = '60 บาท';
+    
+    // รีเซ็ตค่าเริ่มต้น
+    currentQuantity = 1;
+    document.getElementById('quantity').textContent = currentQuantity;
+    document.getElementById('normal-size').checked = true;
+    document.getElementById('special-size').checked = false;
+    
+    // รีเซ็ตตัวเลือก
+    document.querySelector('input[name="noodle"][value="เส้นเล็ก"]').checked = true;
+    
+    // รีเซ็ต checkbox
+    document.querySelectorAll('input[name="meatball"]').forEach(cb => cb.checked = false);
+    document.querySelector('input[name="meatball"][value="ลูกชิ้นหมู"]').checked = true;
+    
+    document.querySelectorAll('input[name="vegetable"]').forEach(cb => cb.checked = false);
+    document.querySelector('input[name="vegetable"][value="ผักบุ้ง"]').checked = true;
+    
+    document.getElementById('special-note').value = '';
+    
+    // คำนวณราคา
+    calculateTotal();
+    
+    // แสดงหน้าเลือกตัวเลือก
+    document.getElementById('menu-page').classList.remove('active');
+    document.getElementById('option-page').classList.add('active');
+    
+    // เลื่อนขึ้นบนสุด
+    document.getElementById('option-page').scrollTop = 0;
+}
+
+// ฟังก์ชันกลับไปหน้าเมนู
+function goBackToMenu() {
+    document.getElementById('option-page').classList.remove('active');
+    document.getElementById('menu-page').classList.add('active');
+}
+
+// ฟังก์ชันเพิ่ม/ลดจำนวน
+function increaseQuantity() {
+    currentQuantity++;
+    document.getElementById('quantity').textContent = currentQuantity;
+    calculateTotal();
+}
+
+function decreaseQuantity() {
+    if (currentQuantity > 1) {
+        currentQuantity--;
+        document.getElementById('quantity').textContent = currentQuantity;
+        calculateTotal();
+    }
+}
+
+// ฟังก์ชันคำนวณราคารวม
+function calculateTotal() {
+    if (!currentItem) return;
+    
+    const normalSelected = document.getElementById('normal-size').checked;
+    const specialSelected = document.getElementById('special-size').checked;
+    
+    let total = 0;
+    if (normalSelected) {
+        total += currentItem.normalPrice * currentQuantity;
+    }
+    if (specialSelected) {
+        total += currentItem.specialPrice * currentQuantity;
+    }
+    
+    document.getElementById('item-total').textContent = total + ' บาท';
+}
+
+// เพิ่ม event listener สำหรับการเปลี่ยนแปลงขนาด
+document.addEventListener('DOMContentLoaded', function() {
+    const normalSizeCheckbox = document.getElementById('normal-size');
+    const specialSizeCheckbox = document.getElementById('special-size');
+    
+    if (normalSizeCheckbox) {
+        normalSizeCheckbox.addEventListener('change', calculateTotal);
+    }
+    
+    if (specialSizeCheckbox) {
+        specialSizeCheckbox.addEventListener('change', calculateTotal);
+    }
+});
+
+// ฟังก์ชันเพิ่มลงตะกร้า
+function addToCart() {
+    if (!currentItem) return;
+    
+    const normalSelected = document.getElementById('normal-size').checked;
+    const specialSelected = document.getElementById('special-size').checked;
+    
+    if (!normalSelected && !specialSelected) {
+        alert('กรุณาเลือกขนาดอาหาร');
+        return;
+    }
+    
+    // รวบรวมตัวเลือกที่เลือก
+    const noodleType = document.querySelector('input[name="noodle"]:checked')?.value || '';
+    
+    const selectedMeatballs = [];
+    document.querySelectorAll('input[name="meatball"]:checked').forEach(cb => {
+        selectedMeatballs.push(cb.value);
+    });
+    
+    const selectedVegetables = [];
+    document.querySelectorAll('input[name="vegetable"]:checked').forEach(cb => {
+        selectedVegetables.push(cb.value);
+    });
+    
+    const specialNote = document.getElementById('special-note').value;
+    
+    // สร้างรายการสำหรับตะกร้า
+    let total = 0;
+    if (normalSelected) total += currentItem.normalPrice * currentQuantity;
+    if (specialSelected) total += currentItem.specialPrice * currentQuantity;
+    
+    const cartItem = {
+        id: Date.now(),
+        name: currentItem.name,
+        normalQty: normalSelected ? currentQuantity : 0,
+        specialQty: specialSelected ? currentQuantity : 0,
+        normalPrice: currentItem.normalPrice,
+        specialPrice: currentItem.specialPrice,
+        noodleType: noodleType,
+        meatballs: selectedMeatballs,
+        vegetables: selectedVegetables,
+        note: specialNote,
+        total: total
+    };
+    
+    cart.push(cartItem);
+    updateCartDisplay();
+    
+    // กลับไปหน้ารายการสั่งซื้อ
+    document.getElementById('option-page').classList.remove('active');
+    document.getElementById('cart-page').classList.add('active');
+}
+
+// ฟังก์ชันอัพเดทการแสดงผลตะกร้า
+function updateCartDisplay() {
+    const cartItemsContainer = document.getElementById('cart-items');
+    const cartTotalElement = document.getElementById('cart-total-price');
+    
+    // ล้างรายการเก่า
+    cartItemsContainer.innerHTML = '';
+    
+    let totalPrice = 0;
+    
+    cart.forEach(item => {
+        const cartItemElement = document.createElement('div');
+        cartItemElement.className = 'cart-item';
+        
+        // สร้างรายละเอียดสินค้า
+        let itemDetails = [];
+        if (item.normalQty > 0) {
+            itemDetails.push(`ธรรมดา ${item.normalQty} ชาม`);
+        }
+        if (item.specialQty > 0) {
+            itemDetails.push(`พิเศษ ${item.specialQty} ชาม`);
+        }
+        
+        cartItemElement.innerHTML = `
+            <div class="cart-item-header">
+                <div class="cart-item-name">${item.name}</div>
+                <div class="cart-item-image"></div>
+            </div>
+            <div class="cart-item-details">${itemDetails.join(', ')}</div>
+            <div class="cart-item-details">เส้น: ${item.noodleType}</div>
+            ${item.meatballs.length > 0 ? `<div class="cart-item-details">ลูกชิ้น: ${item.meatballs.join(', ')}</div>` : ''}
+            ${item.vegetables.length > 0 ? `<div class="cart-item-details">ผัก: ${item.vegetables.join(', ')}</div>` : ''}
+            ${item.note ? `<div class="cart-item-details">หมายเหตุ: ${item.note}</div>` : ''}
+            <div class="cart-item-price">${item.total} บาท</div>
+        `;
+        
+        cartItemsContainer.appendChild(cartItemElement);
+        totalPrice += item.total;
+    });
+    
+    cartTotalElement.textContent = totalPrice + ' บาท';
+}
+
+// ฟังก์ชันสั่งอาหาร
+function placeOrder() {
+    if (cart.length === 0) {
+        alert('ไม่มีรายการในตะกร้า');
+        return;
+    }
+    
+    // เลือกวิธีการชำระเงิน
+    const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
+    const paymentText = paymentMethod === 'cash' ? 'เงินสด' : 'โอนเงิน';
+    
+    // คำนวณราคารวม
+    const totalAmount = cart.reduce((sum, item) => sum + item.total, 0);
+    
+    // เก็บประวัติการสั่งซื้อ (ใช้ timestamp เป็น ID เพื่อหลีกเลี่ยงการซ้ำกัน)
+    const order = {
+        id: Date.now(),
+        timestamp: new Date(),
+        items: [...cart],
+        paymentMethod: paymentMethod,
+        paymentText: paymentText,
+        total: totalAmount,
+        status: 'confirmed' // เพิ่มสถานะการสั่งซื้อ
+    };
+    
+    orderHistory.push(order);
+    
+    // บันทึกลง localStorage เพื่อให้คงอยู่ระหว่างการรีเฟรช
+    saveOrderHistory();
+    
+    // แปลง ID ให้เป็นรูปแบบสั้นๆ สำหรับแสดง  
+    const displayOrderId = String(order.id).slice(-4);
+    alert(`สั่งอาหารเรียบร้อยแล้ว!\nหมายเลขออเดอร์: #${displayOrderId}\nวิธีการชำระเงิน: ${paymentText}\nยอดรวม: ${totalAmount} บาท\nรอสักครู่อาหารจะมาเสิร์ฟ`);
+    
+    // รีเซ็ตตะกร้า
+    cart = [];
+    updateCartDisplay();
+    
+    // กลับไปหน้าเมนู
+    document.getElementById('cart-page').classList.remove('active');
+    document.getElementById('menu-page').classList.add('active');
+}
+
+// ฟังก์ชันเพิ่มเติมสำหรับการนำทาง
+function showCartPage() {
+    document.getElementById('menu-page').classList.remove('active');
+    document.getElementById('cart-page').classList.add('active');
+    updateCartDisplay();
+}
+
+// ฟังก์ชันย้อนกลับจากหน้าตะกร้าไปหน้าเมนู
+function goBackToMenuFromCart() {
+    document.getElementById('cart-page').classList.remove('active');
+    document.getElementById('menu-page').classList.add('active');
+}
+
+// เพิ่มปุ่มดูตะกร้าในหน้าเมนู (ถ้าต้องการ)
+document.addEventListener('DOMContentLoaded', function() {
+    // โหลดประวัติการสั่งซื้อเมื่อเริ่มต้น
+    loadOrderHistory();
+    // ถ้าไม่มีข้อมูลในประวัติ ให้เพิ่มข้อมูลตัวอย่าง  
+    if (orderHistory.length === 0) {
+        initializeSampleData();
+    }
+    
+    // เพิ่มปุ่มดูตะกร้าในหน้าเมนู
+    const menuPage = document.getElementById('menu-page');
+    if (menuPage) {
+        const cartButton = document.createElement('button');
+        cartButton.textContent = 'ดูตะกร้า (' + cart.length + ')';
+        cartButton.className = 'cart-button';
+        cartButton.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 15px 20px;
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            z-index: 1000;
+        `;
+        cartButton.onclick = showCartPage;
+        
+        document.body.appendChild(cartButton);
+        
+        // อัพเดทจำนวนในปุ่ม
+        const originalUpdateCart = updateCartDisplay;
+        updateCartDisplay = function() {
+            originalUpdateCart();
+            cartButton.textContent = 'ดูตะกร้า (' + cart.length + ')';
+        };
+    }
+});
+
+// ฟังก์ชันสำหรับระบบแอดมิน
+function showAdminLogin() {
+    document.getElementById('qr-page').classList.remove('active');
+    document.getElementById('admin-login-page').classList.add('active');
+}
+
+function goBackToQR() {
+    document.getElementById('admin-login-page').classList.remove('active');
+    document.getElementById('qr-page').classList.add('active');
+}
+
+function adminLogin() {
+    const password = document.getElementById('admin-password').value;
+    
+    if (password === '111223') {
+        isAdminLoggedIn = true;
+        document.getElementById('admin-login-page').classList.remove('active');
+        document.getElementById('admin-dashboard').classList.add('active');
+        document.getElementById('admin-password').value = '';
+    } else {
+        alert('รหัสผ่านไม่ถูกต้อง');
+        document.getElementById('admin-password').value = '';
+    }
+}
+
+function adminLogout() {
+    isAdminLoggedIn = false;
+    document.getElementById('admin-dashboard').classList.remove('active');
+    document.getElementById('menu-management-page').classList.remove('active');
+    document.getElementById('order-history-page').classList.remove('active');
+    document.getElementById('sales-summary-page').classList.remove('active');
+    document.getElementById('qr-page').classList.add('active');
+}
+
+function showMenuManagement() {
+    document.getElementById('admin-dashboard').classList.remove('active');
+    document.getElementById('menu-management-page').classList.add('active');
+    displayMenuList();
+}
+
+function showOrderHistory() {
+    document.getElementById('admin-dashboard').classList.remove('active');
+    document.getElementById('order-history-page').classList.add('active');
+    displayOrderHistory();
+}
+
+function showSalesSummary() {
+    document.getElementById('admin-dashboard').classList.remove('active');
+    document.getElementById('sales-summary-page').classList.add('active');
+    displaySalesSummary();
+}
+
+function goBackToAdminDashboard() {
+    document.getElementById('menu-management-page').classList.remove('active');
+    document.getElementById('order-history-page').classList.remove('active');
+    document.getElementById('sales-summary-page').classList.remove('active');
+    document.getElementById('admin-dashboard').classList.add('active');
+}
+
+function showAddMenuForm() {
+    document.getElementById('add-menu-form').style.display = 'block';
+    editingMenuId = null;
+    document.getElementById('new-menu-name').value = '';
+    document.getElementById('new-menu-price').value = '';
+}
+
+function cancelAddMenu() {
+    document.getElementById('add-menu-form').style.display = 'none';
+    editingMenuId = null;
+}
+
+function addNewMenu() {
+    const name = document.getElementById('new-menu-name').value.trim();
+    // ใช้ราคาคงที่ 50 บาท ไม่อ่านจาก form
+    const price = 50;
+    
+    if (!name) {
+        alert('กรุณากรอกชื่อเมนู');
+        return;
+    }
+    
+    if (editingMenuId !== null) {
+        // แก้ไขเมนูที่มีอยู่
+        const menuIndex = menuItems.findIndex(item => item.id === editingMenuId);
+        if (menuIndex !== -1) {
+            menuItems[menuIndex].name = name;
+            menuItems[menuIndex].price = price; // ราคาคงที่ 50 บาท
+        }
+    } else {
+        // เพิ่มเมนูใหม่
+        const newId = Math.max(...menuItems.map(item => item.id)) + 1;
+        menuItems.push({ id: newId, name: name, price: price }); // ราคาคงที่ 50 บาท
+    }
+    
+    updateMenuDisplay();
+    displayMenuList();
+    cancelAddMenu();
+    alert(editingMenuId !== null ? 'แก้ไขเมนูเรียบร้อยแล้ว' : 'เพิ่มเมนูใหม่เรียบร้อยแล้ว');
+}
+
+function editMenu(id) {
+    const menu = menuItems.find(item => item.id === id);
+    if (menu) {
+        editingMenuId = id;
+        document.getElementById('new-menu-name').value = menu.name;
+        document.getElementById('new-menu-price').value = menu.price;
+        document.getElementById('add-menu-form').style.display = 'block';
+    }
+}
+
+function deleteMenu(id) {
+    if (confirm('คุณต้องการลบเมนูนี้หรือไม่?')) {
+        menuItems = menuItems.filter(item => item.id !== id);
+        updateMenuDisplay();
+        displayMenuList();
+        alert('ลบเมนูเรียบร้อยแล้ว');
+    }
+}
+
+function displayMenuList() {
+    const menuListContainer = document.getElementById('menu-list-admin');
+    menuListContainer.innerHTML = '';
+    
+    menuItems.forEach(menu => {
+        const menuElement = document.createElement('div');
+        menuElement.className = 'admin-menu-item';
+        menuElement.innerHTML = `
+            <div>
+                <h4>${menu.name}</h4>
+                <p class="price">ธรรมดา 50 / พิเศษ 60 บาท</p>
+            </div>
+            <div class="admin-menu-actions">
+                <button onclick="editMenu(${menu.id})" class="edit-btn">แก้ไข</button>
+                <button onclick="deleteMenu(${menu.id})" class="delete-btn">ลบ</button>
+            </div>
+        `;
+        menuListContainer.appendChild(menuElement);
+    });
+}
+
+function updateMenuDisplay() {
+    const menuListContainer = document.querySelector('.menu-list .menu-category');
+    
+    // ลบเมนูเก่าออก (เก็บเฉพาะ header)
+    const header = menuListContainer.querySelector('h3');
+    menuListContainer.innerHTML = '';
+    menuListContainer.appendChild(header);
+    
+    // เพิ่มเมนูใหม่
+    menuItems.forEach(menu => {
+        const menuElement = document.createElement('div');
+        menuElement.className = 'menu-item';
+        menuElement.onclick = () => selectMenuItem(menu.name);
+        menuElement.innerHTML = `
+            <div class="menu-info">
+                <h4>${menu.name}</h4>
+                <p class="price">ธรรมดา 50 / พิเศษ 60 บาท</p>
+            </div>
+            <div class="menu-image"></div>
+        `;
+        menuListContainer.appendChild(menuElement);
+    });
+}
+
+// ฟังก์ชันบันทึกประวัติการสั่งซื้อ
+function saveOrderHistory() {
+    try {
+        localStorage.setItem('orderHistory', JSON.stringify(orderHistory));
+    } catch (error) {
+        console.log('ไม่สามารถบันทึกประวัติการสั่งซื้อได้');
+    }
+}
+
+// ฟังก์ชันโหลดประวัติการสั่งซื้อ
+function loadOrderHistory() {
+    try {
+        const saved = localStorage.getItem('orderHistory');
+        if (saved && saved !== '[]') {
+            const parsed = JSON.parse(saved);
+            // แปลง timestamp string กลับเป็น Date object
+            orderHistory = parsed.map(order => ({
+                ...order,
+                timestamp: new Date(order.timestamp),
+                status: order.status || 'confirmed' // ให้ค่าเริ่มต้นกรณีไม่มี status
+            }));
+        } else {
+            // ถ้าไม่มีข้อมูลหรือเป็น array ว่าง ให้เตรียมข้อมูลตัวอย่าง
+            orderHistory = [];
+        }
+    } catch (error) {
+        console.log('ไม่สามารถโหลดประวัติการสั่งซื้อได้:', error);
+        orderHistory = [];
+    }
+}
+
+function displayOrderHistory() {
+    const orderListContainer = document.getElementById('order-list');
+    orderListContainer.innerHTML = '';
+    
+    // โหลดข้อมูลล่าสุดจาก localStorage
+    loadOrderHistory();
+    
+    // ถ้าไม่มีข้อมูลในประวัติ ให้เพิ่มข้อมูลตัวอย่าง
+    if (orderHistory.length === 0) {
+        initializeSampleData();
+    }
+    
+    if (orderHistory.length === 0) {
+        orderListContainer.innerHTML = '<div class="no-orders">ยังไม่มีรายการสั่งซื้อ</div>';
+        return;
+    }
+    
+    // เรียงลำดับจากใหม่ไปเก่า
+    const sortedOrders = [...orderHistory].reverse();
+    
+    sortedOrders.forEach(order => {
+        const orderElement = document.createElement('div');
+        orderElement.className = 'order-item';
+        
+        const paymentClass = order.paymentMethod === 'transfer' ? 'transfer' : '';
+        
+        let itemsHtml = '';
+        order.items.forEach(item => {
+            let itemDetails = [];
+            if (item.normalQty > 0) itemDetails.push(`ธรรมดา ${item.normalQty} ชาม`);
+            if (item.specialQty > 0) itemDetails.push(`พิเศษ ${item.specialQty} ชาม`);
+            
+            itemsHtml += `
+                <div class="order-item-detail">
+                    <strong>${item.name}</strong> - ${itemDetails.join(', ')} (${item.total} บาท)
+                    <br>เส้น: ${item.noodleType}
+                    ${item.meatballs.length > 0 ? '<br>ลูกชิ้น: ' + item.meatballs.join(', ') : ''}
+                    ${item.vegetables.length > 0 ? '<br>ผัก: ' + item.vegetables.join(', ') : ''}
+                    ${item.note ? '<br>หมายเหตุ: ' + item.note : ''}
+                </div>
+            `;
+        });
+        
+        // แปลง ID ให้เป็นรูปแบบสั้นๆ สำหรับแสดง
+        const displayId = String(order.id).slice(-4);
+        const orderStatus = order.status || 'confirmed'; // กรณีที่ไม่มี status
+        
+        // ปลอดภัยกับ timestamp ที่อาจเป็น string
+        const orderTime = order.timestamp ? new Date(order.timestamp) : new Date();
+        const timeStr = orderTime.toLocaleString('th-TH');
+        
+        orderElement.innerHTML = `
+            <div class="order-header">
+                <span class="order-id">ออเดอร์ #${displayId}</span>
+                <div>
+                    <span class="order-payment ${paymentClass}">${order.paymentText}</span>
+                    <div class="order-time">${timeStr}</div>
+                </div>
+            </div>
+            <div class="order-details">
+                ${itemsHtml}
+            </div>
+            <div class="order-total">รวม: ${order.total} บาท</div>
+            <div class="order-status">สถานะ: ${orderStatus === 'confirmed' ? 'ยืนยันแล้ว' : 'รอดำเนินการ'}</div>
+        `;
+        
+        orderListContainer.appendChild(orderElement);
+    });
+}
+
+function displaySalesSummary() {
+    const salesContainer = document.getElementById('sales-summary');
+    salesContainer.innerHTML = '';
+    
+    // โหลดข้อมูลล่าสุดจาก localStorage
+    loadOrderHistory();
+    
+    if (orderHistory.length === 0) {
+        salesContainer.innerHTML = '<div class="no-sales">ยังไม่มีรายการขาย</div>';
+        return;
+    }
+    
+    // คำนวณสถิติ
+    const totalOrders = orderHistory.length;
+    const totalRevenue = orderHistory.reduce((sum, order) => sum + order.total, 0);
+    const averageOrderValue = Math.round(totalRevenue / totalOrders);
+    
+    // นับจำนวนการชำระแต่ละประเภท
+    const cashOrders = orderHistory.filter(order => order.paymentMethod === 'cash').length;
+    const transferOrders = orderHistory.filter(order => order.paymentMethod === 'transfer').length;
+    const cashRevenue = orderHistory.filter(order => order.paymentMethod === 'cash').reduce((sum, order) => sum + order.total, 0);
+    const transferRevenue = orderHistory.filter(order => order.paymentMethod === 'transfer').reduce((sum, order) => sum + order.total, 0);
+    
+    // นับยอดขายแต่ละเมนู
+    const menuSales = {};
+    orderHistory.forEach(order => {
+        order.items.forEach(item => {
+            if (!menuSales[item.name]) {
+                menuSales[item.name] = { qty: 0, revenue: 0 };
+            }
+            const totalQty = (item.normalQty || 0) + (item.specialQty || 0);
+            menuSales[item.name].qty += totalQty;
+            menuSales[item.name].revenue += item.total;
+        });
+    });
+    
+    // เรียงลำดับเมนูตามยอดขาย
+    const sortedMenuSales = Object.entries(menuSales)
+        .sort((a, b) => b[1].revenue - a[1].revenue);
+    
+    // สร้าง HTML
+    const summaryHTML = `
+        <div class="summary-stats">
+            <h3>สถิติรวม</h3>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value">${totalOrders}</div>
+                    <div class="stat-label">ออเดอร์ทั้งหมด</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${totalRevenue.toLocaleString()}</div>
+                    <div class="stat-label">รายได้รวม (บาท)</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${averageOrderValue}</div>
+                    <div class="stat-label">มูลค่าเฉลี่ย/ออเดอร์ (บาท)</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="payment-stats">
+            <h3>สถิติการชำระเงิน</h3>
+            <div class="payment-grid">
+                <div class="payment-item">
+                    <div class="payment-type">เงินสด</div>
+                    <div class="payment-details">
+                        <span>${cashOrders} ออเดอร์</span>
+                        <span>${cashRevenue.toLocaleString()} บาท</span>
+                    </div>
+                </div>
+                <div class="payment-item">
+                    <div class="payment-type">โอนเงิน</div>
+                    <div class="payment-details">
+                        <span>${transferOrders} ออเดอร์</span>
+                        <span>${transferRevenue.toLocaleString()} บาท</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="menu-sales-stats">
+            <h3>ยอดขายแต่ละเมนู</h3>
+            <div class="menu-sales-list">
+                ${sortedMenuSales.map(([menuName, stats], index) => `
+                    <div class="menu-sales-item">
+                        <div class="rank">#${index + 1}</div>
+                        <div class="menu-name">${menuName}</div>
+                        <div class="menu-stats">
+                            <span>${stats.qty} จาน</span>
+                            <span>${stats.revenue.toLocaleString()} บาท</span>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+    
+    salesContainer.innerHTML = summaryHTML;
+}

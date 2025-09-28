@@ -1,0 +1,891 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f5f5f5;
+    color: #333;
+    overflow-x: hidden;
+}
+
+.container {
+    max-width: 400px;
+    margin: 0 auto;
+    background-color: white;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.page {
+    display: none;
+}
+
+.page.active {
+    display: block;
+}
+
+/* หน้า QR Code */
+#qr-page {
+    text-align: center;
+}
+
+#qr-page h1 {
+    font-size: 24px;
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+#qr-page h2 {
+    font-size: 20px;
+    margin-bottom: 20px;
+}
+
+.table-number {
+    font-size: 18px;
+    margin-bottom: 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.table-number span {
+    font-size: 48px;
+    font-weight: bold;
+}
+
+.qr-code {
+    margin: 30px 0;
+    display: flex;
+    justify-content: center;
+}
+
+.qr-grid {
+    width: 200px;
+    height: 200px;
+    border: 2px solid #333;
+}
+
+.qr-pattern {
+    width: 100%;
+    height: 100%;
+    background-image: 
+        repeating-linear-gradient(0deg, transparent, transparent 8px, #000 8px, #000 16px),
+        repeating-linear-gradient(90deg, transparent, transparent 8px, #000 8px, #000 16px),
+        linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%),
+        linear-gradient(-45deg, #000 25%, transparent 25%, transparent 75%, #000 75%);
+    background-size: 32px 32px, 32px 32px, 16px 16px, 16px 16px;
+    background-position: 0 0, 0 0, 0 0, 8px 8px;
+}
+
+.app-info {
+    border-top: 2px solid #333;
+    padding-top: 20px;
+    margin-top: 30px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.start-order-btn {
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 20px;
+    width: 100%;
+}
+
+.start-order-btn:hover {
+    background-color: #1976D2;
+}
+
+.admin-access-btn {
+    background-color: #FF9800;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 14px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 10px;
+    width: 100%;
+}
+
+.admin-access-btn:hover {
+    background-color: #F57C00;
+}
+
+/* หน้ารายการเมนู */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 20px;
+}
+
+.header h2 {
+    font-size: 20px;
+}
+
+.table-info {
+    font-size: 16px;
+    color: #666;
+}
+
+.menu-category h3 {
+    color: #2196F3;
+    font-size: 18px;
+    margin-bottom: 15px;
+}
+
+.menu-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 0;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+}
+
+.menu-item:hover {
+    background-color: #f9f9f9;
+}
+
+.menu-info h4 {
+    font-size: 16px;
+    margin-bottom: 5px;
+}
+
+.menu-info .price {
+    color: #666;
+    font-size: 14px;
+}
+
+.menu-image {
+    width: 60px;
+    height: 60px;
+    background-color: #ddd;
+    border-radius: 8px;
+}
+
+/* หน้าเลือกตัวเลือก */
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #f44336;
+    cursor: pointer;
+    float: right;
+}
+
+.selected-menu {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.selected-menu h3 {
+    font-size: 18px;
+    margin-bottom: 15px;
+}
+
+.selected-menu .menu-image {
+    width: 100px;
+    height: 100px;
+    margin: 0 auto 20px;
+}
+
+.size-price-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.size-option {
+    text-align: center;
+}
+
+.size-option h4 {
+    font-size: 16px;
+    margin-bottom: 5px;
+}
+
+.size-option p {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 10px;
+}
+
+.size-option select {
+    padding: 5px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.quantity-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.quantity-controls button {
+    width: 30px;
+    height: 30px;
+    border: 1px solid #ddd;
+    background: white;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+}
+
+.quantity-controls span {
+    font-size: 18px;
+    min-width: 20px;
+    text-align: center;
+}
+
+.options-section {
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+.option-group {
+    margin-bottom: 25px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 15px;
+}
+
+.option-title {
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+.option-title.blue {
+    color: #2196F3;
+}
+
+.required {
+    font-size: 12px;
+    color: #f44336;
+    font-weight: normal;
+}
+
+.option-item {
+    margin-bottom: 8px;
+}
+
+.option-item label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.option-item input {
+    margin-right: 10px;
+}
+
+.note-section {
+    margin-bottom: 25px;
+}
+
+.note-section h4 {
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+.note-desc {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 10px;
+    line-height: 1.4;
+}
+
+.note-section textarea {
+    width: 100%;
+    height: 80px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    resize: vertical;
+    font-family: inherit;
+}
+
+.total-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.total-price {
+    color: #2196F3;
+}
+
+.add-to-cart-btn {
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    padding: 15px;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    width: 100%;
+}
+
+.add-to-cart-btn:hover {
+    background-color: #1976D2;
+}
+
+/* หน้ารายการสั่งซื้อ */
+.cart-items {
+    margin-bottom: 30px;
+}
+
+.cart-item {
+    border-bottom: 1px solid #eee;
+    padding: 15px 0;
+}
+
+.cart-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.cart-item-name {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.cart-item-image {
+    width: 60px;
+    height: 60px;
+    background-color: #ddd;
+    border-radius: 8px;
+}
+
+.cart-item-details {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.cart-item-price {
+    color: #2196F3;
+    font-weight: bold;
+}
+
+.cart-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 15px;
+    background-color: #f9f9f9;
+    border-radius: 5px;
+}
+
+.order-btn {
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    padding: 15px;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    width: 100%;
+}
+
+.order-btn:hover {
+    background-color: #1976D2;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .container {
+        padding: 15px;
+    }
+    
+    .size-price-section {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .quantity-controls {
+        order: -1;
+    }
+}
+
+/* Scrollbar styling */
+.options-section::-webkit-scrollbar {
+    width: 6px;
+}
+
+.options-section::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.options-section::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.options-section::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* สไตล์สำหรับหน้าแอดมิน */
+.admin-login {
+    text-align: center;
+    padding: 50px 20px;
+}
+
+.admin-login h2 {
+    margin-bottom: 30px;
+    color: #333;
+}
+
+.login-form {
+    max-width: 300px;
+    margin: 0 auto;
+}
+
+.login-form input {
+    width: 100%;
+    padding: 15px;
+    font-size: 16px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.login-btn {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 15px;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.login-btn:hover {
+    background-color: #45a049;
+}
+
+.back-btn {
+    background-color: #9E9E9E;
+    color: white;
+    border: none;
+    padding: 10px;
+    font-size: 14px;
+    border-radius: 5px;
+    cursor: pointer;
+    width: 100%;
+}
+
+.back-btn:hover {
+    background-color: #757575;
+}
+
+.admin-menu {
+    padding: 20px 0;
+}
+
+.admin-btn {
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    padding: 20px;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    width: 100%;
+    margin-bottom: 15px;
+}
+
+.admin-btn:hover {
+    background-color: #1976D2;
+}
+
+.menu-actions {
+    margin-bottom: 20px;
+}
+
+.add-menu-btn {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 15px;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    width: 100%;
+}
+
+.add-menu-btn:hover {
+    background-color: #45a049;
+}
+
+.menu-form {
+    background-color: #f9f9f9;
+    padding: 20px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
+
+.menu-form h3 {
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.save-btn {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    flex: 1;
+}
+
+.save-btn:hover {
+    background-color: #45a049;
+}
+
+.cancel-btn {
+    background-color: #f44336;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    flex: 1;
+}
+
+.cancel-btn:hover {
+    background-color: #da190b;
+}
+
+.menu-list-admin {
+    margin-top: 20px;
+}
+
+.admin-menu-item {
+    background-color: #f9f9f9;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.admin-menu-item h4 {
+    margin: 0;
+    color: #333;
+}
+
+.admin-menu-item .price {
+    color: #666;
+    font-size: 14px;
+}
+
+.admin-menu-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.edit-btn, .delete-btn {
+    padding: 5px 10px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.edit-btn {
+    background-color: #FF9800;
+    color: white;
+}
+
+.edit-btn:hover {
+    background-color: #F57C00;
+}
+
+.delete-btn {
+    background-color: #f44336;
+    color: white;
+}
+
+.delete-btn:hover {
+    background-color: #da190b;
+}
+
+.payment-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #f9f9f9;
+    border-radius: 5px;
+}
+
+.payment-section h4 {
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.payment-options {
+    display: flex;
+    gap: 20px;
+}
+
+.payment-options label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.payment-options input {
+    margin-right: 8px;
+}
+
+/* สไตล์สำหรับหน้าดูรายการสั่งซื้อ */
+.order-list {
+    margin-top: 20px;
+}
+
+.order-item {
+    background-color: #f9f9f9;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 15px;
+    border-left: 4px solid #2196F3;
+}
+
+.order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.order-id {
+    font-weight: bold;
+    color: #2196F3;
+}
+
+.order-time {
+    font-size: 12px;
+    color: #666;
+}
+
+.order-payment {
+    background-color: #4CAF50;
+    color: white;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+}
+
+.order-payment.transfer {
+    background-color: #FF9800;
+}
+
+.order-details {
+    margin-top: 10px;
+}
+
+.order-item-detail {
+    font-size: 14px;
+    margin-bottom: 5px;
+    padding-left: 10px;
+}
+
+.order-total {
+    text-align: right;
+    font-weight: bold;
+    color: #f44336;
+    margin-top: 10px;
+}
+
+.no-orders {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+    padding: 50px 20px;
+}
+
+.order-status {
+    text-align: right;
+    font-size: 12px;
+    color: #4CAF50;
+    margin-top: 5px;
+    font-weight: bold;
+}
+
+/* สไตล์สำหรับหน้าสรุปยอดขาย */
+.sales-summary {
+    padding: 20px 0;
+}
+
+.summary-stats, .payment-stats, .menu-sales-stats {
+    margin-bottom: 30px;
+    background: #f9f9f9;
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.summary-stats h3, .payment-stats h3, .menu-sales-stats h3 {
+    margin: 0 0 15px 0;
+    color: #333;
+    font-size: 18px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 15px;
+}
+
+.stat-item {
+    text-align: center;
+    background: white;
+    padding: 15px;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: #2196F3;
+    margin-bottom: 5px;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #666;
+}
+
+.payment-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.payment-item {
+    background: white;
+    padding: 15px;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.payment-type {
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 8px;
+    font-size: 16px;
+}
+
+.payment-details {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.payment-details span {
+    color: #666;
+    font-size: 14px;
+}
+
+.menu-sales-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.menu-sales-item {
+    display: flex;
+    align-items: center;
+    background: white;
+    padding: 12px 15px;
+    margin-bottom: 8px;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.menu-sales-item .rank {
+    width: 40px;
+    height: 40px;
+    background: #2196F3;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-right: 15px;
+    flex-shrink: 0;
+}
+
+.menu-sales-item .menu-name {
+    flex: 1;
+    font-weight: bold;
+    color: #333;
+}
+
+.menu-sales-item .menu-stats {
+    display: flex;
+    flex-direction: column;
+    text-align: right;
+    color: #666;
+    font-size: 14px;
+}
+
+.no-sales {
+    text-align: center;
+    color: #666;
+    padding: 40px 20px;
+    font-style: italic;
+}
