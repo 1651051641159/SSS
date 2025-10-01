@@ -31,6 +31,7 @@
             </div>
             
             <div class="admin-menu">
+                <button onclick="showTableManagement()" class="admin-btn">จัดการโต๊ะ</button>
                 <button onclick="showMenuManagement()" class="admin-btn">จัดการเมนูอาหาร</button>
                 <button onclick="showOrderHistory()" class="admin-btn">ดูรายการสั่งซื้อ</button>
                 <button onclick="showSalesSummary()" class="admin-btn">สรุปยอดขาย</button>
@@ -97,6 +98,45 @@
             
             <div id="sales-summary" class="sales-summary">
                 <!-- สรุปยอดขายจะแสดงที่นี่ -->
+            </div>
+        </div>
+    </div>
+
+    <!-- หน้าจัดการโต๊ะ -->
+    <div id="table-management-page" class="page">
+        <div class="container">
+            <div class="header">
+                <h2>จัดการโต๊ะ</h2>
+                <button onclick="goBackToAdminDashboard()" class="close-btn">×</button>
+            </div>
+            
+            <div class="menu-actions">
+                <button onclick="showAddTableForm()" class="add-menu-btn">เพิ่มโต๊ะใหม่</button>
+            </div>
+            
+            <div id="add-table-form" class="menu-form" style="display: none;">
+                <h3>เพิ่มโต๊ะใหม่</h3>
+                <div class="form-group">
+                    <label>หมายเลขโต๊ะ:</label>
+                    <input type="number" id="new-table-number" placeholder="กรอกหมายเลขโต๊ะ" min="1">
+                </div>
+                <div class="form-actions">
+                    <button onclick="addNewTable()" class="save-btn">บันทึก</button>
+                    <button onclick="cancelAddTable()" class="cancel-btn">ยกเลิก</button>
+                </div>
+            </div>
+            
+            <div id="table-list-admin" class="menu-list-admin">
+                <!-- รายการโต๊ะสำหรับแอดมินจะแสดงที่นี่ -->
+            </div>
+            
+            <div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
+                <h3>วิธีใช้ QR Code สำหรับแต่ละโต๊ะ</h3>
+                <p>สร้าง QR Code ที่มี URL รูปแบบ:</p>
+                <p><strong>https://your-replit-url.repl.co/?table=<span style="color: #e53935;">หมายเลขโต๊ะ</span></strong></p>
+                <p style="margin-top: 10px; font-size: 14px; color: #666;">
+                    เช่น โต๊ะที่ 5 ใช้ URL: https://your-replit-url.repl.co/?table=5
+                </p>
             </div>
         </div>
     </div>

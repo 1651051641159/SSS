@@ -13,6 +13,8 @@ let menuItems = [
 ];
 let editingMenuId = null;
 let orderHistory = [];
+let tables = [];
+let currentTableNumber = null;
 
 // เพิ่มข้อมูลตัวอย่างสำหรับทดสอบ (เฉพาะครั้งแรกที่ไม่มีข้อมูลใน localStorage)
 function initializeSampleData() {
@@ -65,6 +67,81 @@ function initializeSampleData() {
         // บันทึกข้อมูลตัวอย่างไว้ใน localStorage
         saveOrderHistory();
     }
+}
+
+// ฟังก์ชันจัดการโต๊ะ
+function loadTables() {
+    const saved = localStorage.getItem("tables");
+    if (saved) {
+        tables = JSON.parse(saved);
+    } else {
+        // สร้างโต๊ะเริ่มต้น 10 โต๊ะ
+        tables = [];
+        for (let i = 1; i <= 10; i++) {
+            tables.push({
+                id: i,
+                number: i,
+                name: `โต๊ะที่ ${i}`,
+                status: "available",
+            });
+        }
+        saveTables();
+    }
+}
+
+function saveTables() {
+    localStorage.setItem("tables", JSON.stringify(tables));
+}
+
+function addTable(tableNumber) {
+    const existingTable = tables.find((t) => t.number === tableNumber);
+    if (existingTable) {
+        alert("หมายเลขโต๊ะนี้มีอยู่แล้ว");
+        return false;
+    }
+
+    const newTable = {
+        id: Date.now(),
+        number: tableNumber,
+        name: `โต๊ะที่ ${tableNumber}`,
+        status: "available",
+    };
+
+    tables.push(newTable);
+    tables.sort((a, b) => a.number - b.number);
+    saveTables();
+    return true;
+}
+
+function deleteTable(tableId) {
+    tables = tables.filter((t) => t.id !== tableId);
+    saveTables();
+}
+
+function getTableFromURL() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tableParam = urlParams.get("table");
+    if (tableParam) {
+        currentTableNumber = parseInt(tableParam);
+    } else {
+        currentTableNumber = 1; // ค่าเริ่มต้น
+    }
+    updateTableDisplay();
+}
+
+function updateTableDisplay() {
+    const tableNumElement = document.getElementById("table-num");
+    if (tableNumElement && currentTableNumber) {
+        tableNumElement.textContent = currentTableNumber;
+    }
+
+    // อัปเดตในหน้าอื่นๆ ด้วย
+    const tableInfoElements = document.querySelectorAll(".table-info");
+    tableInfoElements.forEach((elem) => {
+        if (currentTableNumber) {
+            elem.textContent = `โต๊ะที่ - ${currentTableNumber}`;
+        }
+    });
 }
 
 // ฟังก์ชันแสดงหน้าเมนู
@@ -134,12 +211,21 @@ function selectMenuItem(menuName) {
     // คำนวณราคา
     calculateTotal();
 
-    // แสดงหน้าเลือกตัวเลือก
-    document.getElementById("menu-page").classList.remove("active");
-    document.getElementById("option-page").classList.add("active");
-
-    // เลื่อนขึ้นบนสุด
-    document.getElementById("option-page").scrollTop = 0;
+    // ตรวจสอบว่าใช้ modal หรือ page navigation
+    const optionModal = document.getElementById("option-modal");
+    const optionPage = document.getElementById("option-page");
+    const menuPage = document.getElementById("menu-page");
+    
+    if (optionModal) {
+        // ถ้าเป็น modal (menu.html) ให้เปิด modal
+        optionModal.style.display = "flex";
+    } else if (optionPage && menuPage) {
+        // ถ้าเป็น page navigation (index.html/single page app)
+        menuPage.classList.remove("active");
+        optionPage.classList.add("active");
+        // เลื่อนขึ้นบนสุด
+        optionPage.scrollTop = 0;
+    }
 }
 
 // ฟังก์ชันกลับไปหน้าเมนู
@@ -279,15 +365,41 @@ function addToCart() {
     cart.push(cartItem);
     updateCartDisplay();
 
-    // กลับไปหน้ารายการสั่งซื้อ
-    document.getElementById("option-page").classList.remove("active");
-    document.getElementById("cart-page").classList.add("active");
+    // แสดงข้อความสำเร็จ
+    alert("เพิ่มเมนูลงตะกร้าเรียบร้อย!");
+
+    // ตรวจสอบว่าใช้ modal หรือ page navigation
+    const optionModal = document.getElementById("option-modal");
+    const optionPage = document.getElementById("option-page");
+    
+    if (optionModal) {
+        // ถ้าเป็น modal (menu.html) ให้ปิด modal
+        optionModal.style.display = "none";
+    } else if (optionPage) {
+        // ถ้าเป็น page navigation (index.html/single page app)
+        const cartPage = document.getElementById("cart-page");
+        if (cartPage) {
+            optionPage.classList.remove("active");
+            cartPage.classList.add("active");
+        }
+    }
 }
 
 // ฟังก์ชันอัพเดทการแสดงผลตะกร้า
 function updateCartDisplay() {
     const cartItemsContainer = document.getElementById("cart-items");
     const cartTotalElement = document.getElementById("cart-total-price");
+
+    // อัปเดตจำนวนสินค้าใน badge (สำหรับ menu.html)
+    const cartCount = document.getElementById("cart-count");
+    if (cartCount) {
+        cartCount.textContent = cart.length;
+    }
+
+    // ตรวจสอบว่า element มีอยู่หรือไม่ (อาจจะอยู่ในหน้าอื่นที่ไม่มี cart display)
+    if (!cartItemsContainer || !cartTotalElement) {
+        return;
+    }
 
     // ล้างรายการเก่า
     cartItemsContainer.innerHTML = "";
@@ -380,6 +492,7 @@ function placeOrder() {
     const order = {
         id: orderNumber, // ใช้หมายเลขลำดับแทน timestamp (เก็บเป็น numeric เพื่อ admin functions)
         timestamp: new Date(),
+        tableNumber: currentTableNumber, // บันทึกหมายเลขโต๊ะ
         items: [...cart],
         paymentMethod: "pending", // รอแอดมินถาม
         paymentText: "รอแอดมินถาม",
@@ -490,58 +603,42 @@ function deleteCartItem(itemId) {
     }
 }
 
-// ฟังก์ชันเพิ่มเติมสำหรับการนำทาง
+// ฟังก์ชันเพิ่มเติมสำหรับการนำทาง (ใช้สำหรับ single-page app เท่านั้น)
 function showCartPage() {
-    document.getElementById("menu-page").classList.remove("active");
-    document.getElementById("cart-page").classList.add("active");
-    updateCartDisplay();
+    const menuPage = document.getElementById("menu-page");
+    const cartPage = document.getElementById("cart-page");
+    
+    // ตรวจสอบว่า elements มีอยู่จริง (ใช้ได้กับ single-page app เท่านั้น)
+    if (menuPage && cartPage) {
+        menuPage.classList.remove("active");
+        cartPage.classList.add("active");
+        updateCartDisplay();
+    }
 }
 
-// ฟังก์ชันย้อนกลับจากหน้าตะกร้าไปหน้าเมนู
+// ฟังก์ชันย้อนกลับจากหน้าตะกร้าไปหน้าเมนู (ใช้สำหรับ single-page app เท่านั้น)
 function goBackToMenuFromCart() {
-    document.getElementById("cart-page").classList.remove("active");
-    document.getElementById("menu-page").classList.add("active");
+    const cartPage = document.getElementById("cart-page");
+    const menuPage = document.getElementById("menu-page");
+    
+    // ตรวจสอบว่า elements มีอยู่จริง (ใช้ได้กับ single-page app เท่านั้น)
+    if (cartPage && menuPage) {
+        cartPage.classList.remove("active");
+        menuPage.classList.add("active");
+    }
 }
 
-// เพิ่มปุ่มดูตะกร้าในหน้าเมนู (ถ้าต้องการ)
+// โหลดข้อมูลเริ่มต้น
 document.addEventListener("DOMContentLoaded", function () {
+    // โหลดข้อมูลโต๊ะ
+    loadTables();
+    // โหลดหมายเลขโต๊ะจาก URL
+    getTableFromURL();
     // โหลดประวัติการสั่งซื้อเมื่อเริ่มต้น
     loadOrderHistory();
     // ถ้าไม่มีข้อมูลในประวัติ ให้เพิ่มข้อมูลตัวอย่าง
     if (orderHistory.length === 0) {
         initializeSampleData();
-    }
-
-    // เพิ่มปุ่มดูตะกร้าในหน้าเมนู
-    const menuPage = document.getElementById("menu-page");
-    if (menuPage) {
-        const cartButton = document.createElement("button");
-        cartButton.textContent = "ดูตะกร้า (" + cart.length + ")";
-        cartButton.className = "cart-button";
-        cartButton.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background-color: #f44336;
-            color: white;
-            border: none;
-            border-radius: 50px;
-            padding: 15px 20px;
-            font-size: 14px;
-            cursor: pointer;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            z-index: 1000;
-        `;
-        cartButton.onclick = showCartPage;
-
-        document.body.appendChild(cartButton);
-
-        // อัพเดทจำนวนในปุ่ม
-        const originalUpdateCart = updateCartDisplay;
-        updateCartDisplay = function () {
-            originalUpdateCart();
-            cartButton.textContent = "ดูตะกร้า (" + cart.length + ")";
-        };
     }
 });
 
@@ -572,11 +669,26 @@ function adminLogin() {
 
 function adminLogout() {
     isAdminLoggedIn = false;
-    document.getElementById("admin-dashboard").classList.remove("active");
-    document.getElementById("menu-management-page").classList.remove("active");
-    document.getElementById("order-history-page").classList.remove("active");
-    document.getElementById("sales-summary-page").classList.remove("active");
-    document.getElementById("qr-page").classList.add("active");
+    const dashboardPage = document.getElementById("admin-dashboard");
+    const menuManagementPage = document.getElementById("menu-management-page");
+    const orderHistoryPage = document.getElementById("order-history-page");
+    const salesSummaryPage = document.getElementById("sales-summary-page");
+    const tableManagementPage = document.getElementById("table-management-page");
+    const qrPage = document.getElementById("qr-page");
+    const adminLoginPage = document.getElementById("admin-login-page");
+
+    if (dashboardPage) dashboardPage.classList.remove("active");
+    if (menuManagementPage) menuManagementPage.classList.remove("active");
+    if (orderHistoryPage) orderHistoryPage.classList.remove("active");
+    if (salesSummaryPage) salesSummaryPage.classList.remove("active");
+    if (tableManagementPage) tableManagementPage.classList.remove("active");
+    
+    // กลับไปหน้า qr-page (สำหรับ index.html) หรือ admin-login-page (สำหรับ admin.html)
+    if (qrPage) {
+        qrPage.classList.add("active");
+    } else if (adminLoginPage) {
+        adminLoginPage.classList.add("active");
+    }
 }
 
 function showMenuManagement() {
@@ -597,10 +709,17 @@ function showSalesSummary() {
     displaySalesSummary();
 }
 
+function showTableManagement() {
+    document.getElementById("admin-dashboard").classList.remove("active");
+    document.getElementById("table-management-page").classList.add("active");
+    displayTableList();
+}
+
 function goBackToAdminDashboard() {
     document.getElementById("menu-management-page").classList.remove("active");
     document.getElementById("order-history-page").classList.remove("active");
     document.getElementById("sales-summary-page").classList.remove("active");
+    document.getElementById("table-management-page").classList.remove("active");
     document.getElementById("admin-dashboard").classList.add("active");
 }
 
@@ -817,7 +936,7 @@ function displayOrderHistory() {
 
         orderElement.innerHTML = `
             <div class="order-header">
-                <span class="order-id">ออเดอร์ #${displayId}</span>
+                <span class="order-id">ออเดอร์ #${displayId} ${order.tableNumber ? `<br><small style="font-size: 14px; color: #666;">โต๊ะที่ ${order.tableNumber}</small>` : ""}</span>
                 <div>
                     <span class="order-payment ${paymentClass}">${order.paymentText}</span>
                     <div class="order-time">${timeStr}</div>
@@ -1043,6 +1162,67 @@ function showSalesByPeriod(period) {
     `;
 
     document.getElementById("sales-data").innerHTML = summaryHTML;
+}
+
+// ฟังก์ชันจัดการโต๊ะใน Admin
+function showAddTableForm() {
+    document.getElementById("add-table-form").style.display = "block";
+    document.getElementById("new-table-number").value = "";
+}
+
+function cancelAddTable() {
+    document.getElementById("add-table-form").style.display = "none";
+}
+
+function addNewTable() {
+    const tableNumber = parseInt(
+        document.getElementById("new-table-number").value,
+    );
+
+    if (!tableNumber || tableNumber < 1) {
+        alert("กรุณากรอกหมายเลขโต๊ะที่ถูกต้อง");
+        return;
+    }
+
+    if (addTable(tableNumber)) {
+        alert("เพิ่มโต๊ะเรียบร้อยแล้ว");
+        cancelAddTable();
+        displayTableList();
+    }
+}
+
+function displayTableList() {
+    const tableListContainer = document.getElementById("table-list-admin");
+    tableListContainer.innerHTML = "";
+
+    if (tables.length === 0) {
+        tableListContainer.innerHTML =
+            '<div class="no-data">ยังไม่มีข้อมูลโต๊ะ</div>';
+        return;
+    }
+
+    tables.forEach((table) => {
+        const tableItem = document.createElement("div");
+        tableItem.className = "menu-item-admin";
+        tableItem.innerHTML = `
+            <div class="menu-item-info">
+                <h4>โต๊ะที่ ${table.number}</h4>
+                <p>${table.name}</p>
+            </div>
+            <div class="menu-item-actions">
+                <button onclick="deleteTableAdmin(${table.id})" class="delete-btn">ลบ</button>
+            </div>
+        `;
+        tableListContainer.appendChild(tableItem);
+    });
+}
+
+function deleteTableAdmin(tableId) {
+    if (confirm("คุณต้องการลบโต๊ะนี้หรือไม่?")) {
+        deleteTable(tableId);
+        displayTableList();
+        alert("ลบโต๊ะเรียบร้อยแล้ว");
+    }
 }
 
 // ฟังก์ชันสำหรับ Modal (หลายหน้า)
