@@ -15,13 +15,16 @@ class CustomHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         # พิมพ์ log ที่เหมาะสม
         print(f"[{self.address_string()}] {format % args}")
 
+class ReuseableTCPServer(socketserver.TCPServer):
+    allow_reuse_address = True
+
 if __name__ == "__main__":
     PORT = 5000
     
     # เปลี่ยน directory ไปที่ directory ที่มีไฟล์ HTML
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     
-    with socketserver.TCPServer(("0.0.0.0", PORT), CustomHTTPRequestHandler) as httpd:
+    with ReuseableTCPServer(("0.0.0.0", PORT), CustomHTTPRequestHandler) as httpd:
         print(f"Server running at http://0.0.0.0:{PORT}/")
         print("Press Ctrl+C to stop the server")
         try:

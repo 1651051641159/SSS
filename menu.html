@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>รายการเมนู - ร้านก๋วยเตี๋ยว</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- หน้ารายการเมนู -->
+    <div id="menu-page" class="page active">
+        <div class="container">
+            <div class="header">
+                <a href="index.html" class="close-btn">←</a>
+                <h2>รายการเมนู</h2>
+                <a href="cart.html" class="cart-link">
+                    <span class="cart-icon">🛒</span>
+                    <span id="cart-count" class="cart-count">0</span>
+                </a>
+            </div>
+            
+            <div class="menu-list">
+                <div class="menu-category">
+                    <h3>ก๋วยเตี๋ยว</h3>
+                    
+                    <div class="menu-item" onclick="selectMenuItem('ก๋วยเตี๋ยวน้ำใส')">
+                        <div class="menu-info">
+                            <h4>ก๋วยเตี๋ยวน้ำใส</h4>
+                            <p class="price">ธรรมดา 50 / พิเศษ 60 บาท</p>
+                        </div>
+                        <div class="menu-image"></div>
+                    </div>
+                    
+                    <div class="menu-item" onclick="selectMenuItem('ก๋วยเตี๋ยวต้มยำ')">
+                        <div class="menu-info">
+                            <h4>ก๋วยเตี๋ยวต้มยำ</h4>
+                            <p class="price">ธรรมดา 50 / พิเศษ 60 บาท</p>
+                        </div>
+                        <div class="menu-image"></div>
+                    </div>
+                    
+                    <div class="menu-item" onclick="selectMenuItem('ก๋วยเตี๋ยวเย็นตาโฟ')">
+                        <div class="menu-info">
+                            <h4>ก๋วยเตี๋ยวเย็นตาโฟ</h4>
+                            <p class="price">ธรรมดา 50 / พิเศษ 60 บาท</p>
+                        </div>
+                        <div class="menu-image"></div>
+                    </div>
+                    
+                    <div class="menu-item" onclick="selectMenuItem('ก๋วยเตี๋ยวแห้ง')">
+                        <div class="menu-info">
+                            <h4>ก๋วยเตี๋ยวแห้ง</h4>
+                            <p class="price">ธรรมดา 50 / พิเศษ 60 บาท</p>
+                        </div>
+                        <div class="menu-image"></div>
+                    </div>
+                    
+                    <div class="menu-item" onclick="selectMenuItem('ลูกชิ้นลวก หมู/เนื้อ/เอ็น')">
+                        <div class="menu-info">
+                            <h4>ลูกชิ้นลวก หมู/เนื้อ/เอ็น</h4>
+                            <p class="price">ธรรมดา 50 / พิเศษ 60 บาท</p>
+                        </div>
+                        <div class="menu-image"></div>
+                    </div>
+                    
+                    <div class="menu-item" onclick="selectMenuItem('เกาเหลา')">
+                        <div class="menu-info">
+                            <h4>เกาเหลา</h4>
+                            <p class="price">ธรรมดา 50 / พิเศษ 60 บาท</p>
+                        </div>
+                        <div class="menu-image"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bottom-nav">
+                <a href="menu.html" class="nav-item active">เมนู</a>
+                <a href="cart.html" class="nav-item">ตะกร้า</a>
+                <a href="index.html" class="nav-item">หน้าแรก</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal สำหรับเลือกตัวเลือกเมนู -->
+    <div id="option-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="header">
+                <button onclick="closeOptionModal()" class="close-btn">×</button>
+            </div>
+            
+            <div class="selected-menu">
+                <h3 id="selected-menu-name">ก๋วยเตี๋ยวน้ำใส</h3>
+                <div class="menu-image"></div>
+                
+                <div class="size-price-section">
+                    <div class="size-option">
+                        <h4>ธรรมดา</h4>
+                        <p id="normal-price">50 บาท</p>
+                        <label><input type="radio" name="size" id="normal-size" value="normal" checked> เลือก</label>
+                    </div>
+                    <div class="quantity-controls">
+                        <button onclick="decreaseQuantity()">-</button>
+                        <span id="quantity">1</span>
+                        <button onclick="increaseQuantity()">+</button>
+                    </div>
+                    <div class="size-option">
+                        <h4>พิเศษ</h4>
+                        <p id="special-price">60 บาท</p>
+                        <label><input type="radio" name="size" id="special-size" value="special"> เลือก</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="options-section">
+                <div class="option-group">
+                    <h4 class="option-title blue">เส้น</h4>
+                    <div class="option-item">
+                        <label><input type="radio" name="noodle" value="เส้นเล็ก" checked> เส้นเล็ก</label>
+                    </div>
+                    <div class="option-item">
+                        <label><input type="radio" name="noodle" value="เส้นใหญ่"> เส้นใหญ่</label>
+                    </div>
+                    <div class="option-item">
+                        <label><input type="radio" name="noodle" value="บะหมี่เหลือง"> บะหมี่เหลือง</label>
+                    </div>
+                    <div class="option-item">
+                        <label><input type="radio" name="noodle" value="บะหมี่หยก"> บะหมี่หยก</label>
+                    </div>
+                    <div class="option-item">
+                        <label><input type="radio" name="noodle" value="มาม่า"> มาม่า</label>
+                    </div>
+                    <div class="option-item">
+                        <label><input type="radio" name="noodle" value="วุ้นเส้น"> วุ้นเส้น</label>
+                    </div>
+                    <div class="option-item">
+                        <label><input type="radio" name="noodle" value="เกี๊ยวหมู"> เกี๊ยวหมู</label>
+                    </div>
+                </div>
+                
+                <div class="option-group">
+                    <h4 class="option-title blue">ลูกชิ้น <span class="required">** เลือกได้สูงสุด 3 ชนิด **</span></h4>
+                    <div class="option-item">
+                        <label><input type="checkbox" name="meatball" value="ลูกชิ้นหมู" checked> ลูกชิ้นหมู</label>
+                    </div>
+                    <div class="option-item">
+                        <label><input type="checkbox" name="meatball" value="ลูกชิ้นเนื้อ"> ลูกชิ้นเนื้อ</label>
+                    </div>
+                    <div class="option-item">
+                        <label><input type="checkbox" name="meatball" value="ลูกชิ้นเอ็น"> ลูกชิ้นเอ็น</label>
+                    </div>
+                    <div class="option-item">
+                        <label><input type="checkbox" name="meatball" value="หมูเด้ง"> หมูเด้ง</label>
+                    </div>
+                    <div class="option-item">
+                        <label><input type="checkbox" name="meatball" value="หมูแดง"> หมูแดง</label>
+                    </div>
+                </div>
+                
+                <div class="option-group">
+                    <h4 class="option-title blue">ผัก <span class="required">** เลือกได้หลายรายการ **</span></h4>
+                    <div class="option-item">
+                        <label><input type="checkbox" name="vegetable" value="ผักบุ้ง" checked> ผักบุ้ง</label>
+                    </div>
+                    <div class="option-item">
+                        <label><input type="checkbox" name="vegetable" value="กวางตุ้ง"> กวางตุ้ง</label>
+                    </div>
+                    <div class="option-item">
+                        <label><input type="checkbox" name="vegetable" value="ผักชีโรยหน้า"> ผักชีโรยหน้า</label>
+                    </div>
+                    <div class="option-item">
+                        <label><input type="checkbox" name="vegetable" value="หัวไชเท้า"> หัวไชเท้า</label>
+                    </div>
+                    <div class="option-item">
+                        <label><input type="checkbox" name="vegetable" value="กะหล่ำ"> กะหล่ำ</label>
+                    </div>
+                </div>
+                
+                <div class="note-section">
+                    <h4>หมายเหตุ</h4>
+                    <p class="note-desc">ข้อมูลเพิ่มเติมที่จำเป็นต้องแจ้งพ่อครัวเรื่องความเผ็ด หรือ ปรุงรสเฉพาะ</p>
+                    <textarea id="special-note" placeholder="กรุณาใส่ข้อความ"></textarea>
+                </div>
+                
+                <div class="total-section">
+                    <span>ยอดสุทธิ</span>
+                    <span id="item-total" class="total-price">0 บาท</span>
+                </div>
+                
+                <button onclick="addToCart()" class="add-to-cart-btn">เพิ่มใส่ตะกร้า</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
