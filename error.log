@@ -1,0 +1,8 @@
+[06-Oct-2025 16:40:51 Asia/Bangkok] PHP Warning:  ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\noodle-shop\api\auth.php on line 60
+[06-Oct-2025 16:40:51 Asia/Bangkok] PHP Warning:  session_set_cookie_params(): Session cookie parameters cannot be changed when a session is active in C:\xampp\htdocs\noodle-shop\api\auth.php on line 61
+[06-Oct-2025 16:43:49 Asia/Bangkok] PHP Warning:  ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\noodle-shop\api\auth.php on line 60
+[06-Oct-2025 16:43:49 Asia/Bangkok] PHP Warning:  session_set_cookie_params(): Session cookie parameters cannot be changed when a session is active in C:\xampp\htdocs\noodle-shop\api\auth.php on line 61
+[06-Oct-2025 16:44:04 Asia/Bangkok] PHP Warning:  ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\noodle-shop\api\auth.php on line 60
+[06-Oct-2025 16:44:04 Asia/Bangkok] PHP Warning:  session_set_cookie_params(): Session cookie parameters cannot be changed when a session is active in C:\xampp\htdocs\noodle-shop\api\auth.php on line 61
+[06-Oct-2025 18:15:42 Asia/Bangkok] PHP Warning:  ini_set(): Session ini settings cannot be changed when a session is active in C:\xampp\htdocs\noodle-shop\api\auth.php on line 60
+[06-Oct-2025 18:15:42 Asia/Bangkok] PHP Warning:  session_set_cookie_params(): Session cookie parameters cannot be changed when a session is active in C:\xampp\htdocs\noodle-shop\api\auth.php on line 61

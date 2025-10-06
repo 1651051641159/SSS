@@ -11,13 +11,15 @@
     <div id="cart-page" class="page active">
         <div class="container">
             <div class="header">
-                <a href="menu.html" class="close-btn">←</a>
+                <a href="javascript:goToMenu()" class="close-btn">←</a>
                 <h2>รายการสั่งซื้อ</h2>
-                <span class="table-info">โต๊ะที่ - 1</span>
+                <span class="table-info">โต๊ะที่ - <span id="cart-table-num">1</span></span>
             </div>
             
             <div id="cart-items" class="cart-items">
-                <!-- รายการจะถูกเพิ่มที่นี่โดย JavaScript -->
+                <div style="text-align: center; padding: 40px; color: #666;">
+                    กำลังโหลด...
+                </div>
             </div>
             
             <div class="cart-total">
@@ -33,123 +35,33 @@
             <button onclick="placeOrder()" class="order-btn">สั่งอาหาร</button>
             
             <div class="bottom-nav">
-                <a href="menu.html" class="nav-item">เมนู</a>
-                <a href="cart.html" class="nav-item active">ตะกร้า</a>
-                <a href="index.html" class="nav-item">หน้าแรก</a>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal สำหรับแก้ไขรายการ -->
-    <div id="edit-modal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="header">
-                <button onclick="closeEditModal()" class="close-btn">×</button>
-            </div>
-            
-            <div class="selected-menu">
-                <h3 id="edit-menu-name">ก๋วยเตี๋ยวน้ำใส</h3>
-                <div class="menu-image"></div>
-                
-                <div class="size-price-section">
-                    <div class="size-option">
-                        <h4>ธรรมดา</h4>
-                        <p id="edit-normal-price">50 บาท</p>
-                        <label><input type="radio" name="edit-size" id="edit-normal-size" value="normal" checked> เลือก</label>
-                    </div>
-                    <div class="quantity-controls">
-                        <button onclick="decreaseEditQuantity()">-</button>
-                        <span id="edit-quantity">1</span>
-                        <button onclick="increaseEditQuantity()">+</button>
-                    </div>
-                    <div class="size-option">
-                        <h4>พิเศษ</h4>
-                        <p id="edit-special-price">60 บาท</p>
-                        <label><input type="radio" name="edit-size" id="edit-special-size" value="special"> เลือก</label>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="options-section">
-                <div class="option-group" id="edit-noodle-section">
-                    <h4 class="option-title blue">เส้น</h4>
-                    <div class="option-item">
-                        <label><input type="radio" name="edit-noodle" value="เส้นเล็ก" checked> เส้นเล็ก</label>
-                    </div>
-                    <div class="option-item">
-                        <label><input type="radio" name="edit-noodle" value="เส้นใหญ่"> เส้นใหญ่</label>
-                    </div>
-                    <div class="option-item">
-                        <label><input type="radio" name="edit-noodle" value="บะหมี่เหลือง"> บะหมี่เหลือง</label>
-                    </div>
-                    <div class="option-item">
-                        <label><input type="radio" name="edit-noodle" value="บะหมี่หยก"> บะหมี่หยก</label>
-                    </div>
-                    <div class="option-item">
-                        <label><input type="radio" name="edit-noodle" value="มาม่า"> มาม่า</label>
-                    </div>
-                    <div class="option-item">
-                        <label><input type="radio" name="edit-noodle" value="วุ้นเส้น"> วุ้นเส้น</label>
-                    </div>
-                    <div class="option-item">
-                        <label><input type="radio" name="edit-noodle" value="เกี๊ยวหมู"> เกี๊ยวหมู</label>
-                    </div>
-                </div>
-                
-                <div class="option-group">
-                    <h4 class="option-title blue">ลูกชิ้น <span class="required">** เลือกได้สูงสุด 3 ชนิด **</span></h4>
-                    <div class="option-item">
-                        <label><input type="checkbox" name="edit-meatball" value="ลูกชิ้นหมู" checked> ลูกชิ้นหมู</label>
-                    </div>
-                    <div class="option-item">
-                        <label><input type="checkbox" name="edit-meatball" value="ลูกชิ้นเนื้อ"> ลูกชิ้นเนื้อ</label>
-                    </div>
-                    <div class="option-item">
-                        <label><input type="checkbox" name="edit-meatball" value="ลูกชิ้นเอ็น"> ลูกชิ้นเอ็น</label>
-                    </div>
-                    <div class="option-item">
-                        <label><input type="checkbox" name="edit-meatball" value="หมูเด้ง"> หมูเด้ง</label>
-                    </div>
-                    <div class="option-item">
-                        <label><input type="checkbox" name="edit-meatball" value="หมูแดง"> หมูแดง</label>
-                    </div>
-                </div>
-                
-                <div class="option-group">
-                    <h4 class="option-title blue">ผัก <span class="required">** เลือกได้หลายรายการ **</span></h4>
-                    <div class="option-item">
-                        <label><input type="checkbox" name="edit-vegetable" value="ผักบุ้ง" checked> ผักบุ้ง</label>
-                    </div>
-                    <div class="option-item">
-                        <label><input type="checkbox" name="edit-vegetable" value="กวางตุ้ง"> กวางตุ้ง</label>
-                    </div>
-                    <div class="option-item">
-                        <label><input type="checkbox" name="edit-vegetable" value="ผักชีโรยหน้า"> ผักชีโรยหน้า</label>
-                    </div>
-                    <div class="option-item">
-                        <label><input type="checkbox" name="edit-vegetable" value="หัวไชเท้า"> หัวไชเท้า</label>
-                    </div>
-                    <div class="option-item">
-                        <label><input type="checkbox" name="edit-vegetable" value="กะหล่ำ"> กะหล่ำ</label>
-                    </div>
-                </div>
-                
-                <div class="note-section">
-                    <h4>หมายเหตุ</h4>
-                    <p class="note-desc">ข้อมูลเพิ่มเติมที่จำเป็นต้องแจ้งพ่อครัวเรื่องความเผ็ด หรือ ปรุงรสเฉพาะ</p>
-                    <textarea id="edit-special-note" placeholder="กรุณาใส่ข้อความ"></textarea>
-                </div>
-                
-                <div class="total-section">
-                    <span>ยอดสุทธิ</span>
-                    <span id="edit-item-total" class="total-price">0 บาท</span>
-                </div>
-                
-                <button onclick="saveEditedItem()" class="add-to-cart-btn">บันทึกการแก้ไข</button>
+                <a href="javascript:goToMenu()" class="nav-item">เมนู</a>
+                <a href="javascript:goToCart()" class="nav-item active">ตะกร้า</a>
+                <a href="javascript:goToHome()" class="nav-item">หน้าแรก</a>
             </div>
         </div>
     </div>
 
     <script src="script.js"></script>
+    <script>
+        // โหลดข้อมูลตะกร้าและหมายเลขโต๊ะเมื่อเปิดหน้า
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('Cart page loaded');
+            
+            // โหลด cart จาก sessionStorage
+            loadCartFromSession();
+            console.log('Cart items:', cart);
+            
+            // อัปเดตหมายเลขโต๊ะ
+            getTableFromURL();
+            const cartTableNum = document.getElementById('cart-table-num');
+            if (cartTableNum && currentTableNumber) {
+                cartTableNum.textContent = currentTableNumber;
+            }
+            
+            // แสดงรายการในตะกร้า
+            updateCartDisplay();
+        });
+    </script>
 </body>
 </html>

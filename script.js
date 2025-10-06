@@ -1,142 +1,167 @@
+// API Configuration
+const API_BASE_URL = window.location.origin + '/noodle-shop/api';
+
 // ตัวแปรสำหรับเก็บข้อมูล
 let currentItem = null;
 let cart = [];
 let currentQuantity = 1;
 let isAdminLoggedIn = false;
-let menuItems = [
-    { id: 1, name: "ก๋วยเตี๋ยวน้ำใส", price: 50 },
-    { id: 2, name: "ก๋วยเตี๋ยวต้มยำ", price: 50 },
-    { id: 3, name: "ก๋วยเตี๋ยวเย็นตาโฟ", price: 50 },
-    { id: 4, name: "ก๋วยเตี๋ยวแห้ง", price: 50 },
-    { id: 5, name: "ลูกชิ้นลวก หมู/เนื้อ/เอ็น", price: 50 },
-    { id: 6, name: "เกาเหลา", price: 50 },
-];
+let menuItems = [];
 let editingMenuId = null;
 let orderHistory = [];
 let tables = [];
 let currentTableNumber = null;
 
-// เพิ่มข้อมูลตัวอย่างสำหรับทดสอบ (เฉพาะครั้งแรกที่ไม่มีข้อมูลใน localStorage)
-function initializeSampleData() {
-    // ตรวจสอบว่ามีข้อมูลใน localStorage หรือไม่
-    const saved = localStorage.getItem("orderHistory");
-    if (!saved || saved === "[]") {
-        // เพิ่มออเดอร์ตัวอย่าง 2 รายการเพื่อแสดงว่าระบบทำงาน
-        orderHistory.push({
-            id: Date.now() - 3600000, // ใช้ timestamp เป็น ID
-            timestamp: new Date(Date.now() - 3600000), // 1 ชั่วโมงที่แล้ว
-            items: [
-                {
-                    name: "ก๋วยเตี๋ยวน้ำใส",
-                    normalQty: 1,
-                    specialQty: 0,
-                    noodleType: "เส้นเล็ก",
-                    meatballs: ["ลูกชิ้นหมู"],
-                    vegetables: ["ผักบุ้ง"],
-                    note: "",
-                    total: 50,
-                },
-            ],
-            paymentMethod: "cash",
-            paymentText: "เงินสด",
-            total: 50,
-            status: "confirmed",
-        });
-
-        orderHistory.push({
-            id: Date.now() - 1800000,
-            timestamp: new Date(Date.now() - 1800000), // 30 นาทีที่แล้ว
-            items: [
-                {
-                    name: "ก๋วยเตี๋ยวต้มยำ",
-                    normalQty: 0,
-                    specialQty: 1,
-                    noodleType: "บะหมี่เหลือง",
-                    meatballs: ["ลูกชิ้นเนื้อ", "ลูกชิ้นเอ็น"],
-                    vegetables: ["กะหล่ำ"],
-                    note: "เผ็ดน้อย",
-                    total: 60,
-                },
-            ],
-            paymentMethod: "transfer",
-            paymentText: "โอนเงิน",
-            total: 60,
-            status: "confirmed",
-        });
-
-        // บันทึกข้อมูลตัวอย่างไว้ใน localStorage
-        saveOrderHistory();
+// ฟังก์ชันจัดการ cart ใน sessionStorage
+function saveCartToSession() {
+    try {
+        sessionStorage.setItem('cart', JSON.stringify(cart));
+    } catch (error) {
+        console.error('Error saving cart:', error);
     }
 }
 
-// ฟังก์ชันจัดการโต๊ะ
-function loadTables() {
-    const saved = localStorage.getItem("tables");
-    if (saved) {
-        tables = JSON.parse(saved);
-    } else {
-        // สร้างโต๊ะเริ่มต้น 10 โต๊ะ
-        tables = [];
-        for (let i = 1; i <= 10; i++) {
-            tables.push({
-                id: i,
-                number: i,
-                name: `โต๊ะที่ ${i}`,
-                status: "available",
-            });
+function loadCartFromSession() {
+    try {
+        const saved = sessionStorage.getItem('cart');
+        if (saved) {
+            cart = JSON.parse(saved);
+        } else {
+            cart = [];
         }
-        saveTables();
+    } catch (error) {
+        console.error('Error loading cart:', error);
+        cart = [];
     }
 }
 
-function saveTables() {
-    localStorage.setItem("tables", JSON.stringify(tables));
+function clearCart() {
+    cart = [];
+    sessionStorage.removeItem('cart');
 }
 
-function addTable(tableNumber) {
-    const existingTable = tables.find((t) => t.number === tableNumber);
-    if (existingTable) {
-        alert("หมายเลขโต๊ะนี้มีอยู่แล้ว");
+// ==================== API Helper Functions ====================
+async function apiCall(endpoint, method = 'GET', data = null) {
+    try {
+        const options = {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        };
+        
+        if (data && (method === 'POST' || method === 'PUT')) {
+            options.body = JSON.stringify(data);
+        }
+        
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.error || 'API Error');
+        }
+        
+        return result;
+    } catch (error) {
+        console.error('API Error:', error);
+        throw error;
+    }
+}
+
+// ==================== โหลดข้อมูลเริ่มต้น ====================
+async function loadInitialData() {
+    try {
+        // โหลดโต๊ะ
+        await loadTablesFromAPI();
+        
+        // โหลดเมนู
+        await loadMenuFromAPI();
+        
+        // โหลดหมายเลขโต๊ะจาก URL
+        getTableFromURL();
+        
+    } catch (error) {
+        console.error('Error loading initial data:', error);
+    }
+}
+
+// ==================== Tables Functions ====================
+async function loadTablesFromAPI() {
+    try {
+        const result = await apiCall('/tables.php');
+        tables = result.data || [];
+    } catch (error) {
+        console.error('Error loading tables:', error);
+        tables = [];
+    }
+}
+
+async function addTable(tableNumber) {
+    try {
+        await apiCall('/tables.php', 'POST', {
+            table_number: tableNumber
+        });
+        await loadTablesFromAPI();
+        return true;
+    } catch (error) {
+        alert('ไม่สามารถเพิ่มโต๊ะได้: ' + error.message);
         return false;
     }
-
-    const newTable = {
-        id: Date.now(),
-        number: tableNumber,
-        name: `โต๊ะที่ ${tableNumber}`,
-        status: "available",
-    };
-
-    tables.push(newTable);
-    tables.sort((a, b) => a.number - b.number);
-    saveTables();
-    return true;
 }
 
-function deleteTable(tableId) {
-    tables = tables.filter((t) => t.id !== tableId);
-    saveTables();
+async function deleteTable(tableId) {
+    try {
+        await apiCall(`/tables.php?id=${tableId}`, 'DELETE');
+        await loadTablesFromAPI();
+    } catch (error) {
+        alert('ไม่สามารถลบโต๊ะได้: ' + error.message);
+    }
+}
+
+// ฟังก์ชันจัดการหมายเลขโต๊ะใน sessionStorage
+function saveTableToSession() {
+    try {
+        sessionStorage.setItem('currentTableNumber', currentTableNumber.toString());
+    } catch (error) {
+        console.error('Error saving table number:', error);
+    }
+}
+
+function loadTableFromSession() {
+    try {
+        const saved = sessionStorage.getItem('currentTableNumber');
+        if (saved) {
+            currentTableNumber = parseInt(saved);
+        }
+    } catch (error) {
+        console.error('Error loading table number:', error);
+    }
 }
 
 function getTableFromURL() {
     const urlParams = new URLSearchParams(window.location.search);
-    const tableParam = urlParams.get("table");
+    const tableParam = urlParams.get('table');
     if (tableParam) {
-        currentTableNumber = parseInt(tableParam);
+        const parsed = parseInt(tableParam);
+        currentTableNumber = Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+        saveTableToSession(); // บันทึกลง sessionStorage
     } else {
-        currentTableNumber = 1; // ค่าเริ่มต้น
+        // ถ้าไม่มี parameter ให้โหลดจาก sessionStorage
+        loadTableFromSession();
+        if (!currentTableNumber) {
+            currentTableNumber = 1;
+        }
     }
     updateTableDisplay();
 }
 
 function updateTableDisplay() {
-    const tableNumElement = document.getElementById("table-num");
+    const tableNumElement = document.getElementById('table-num');
     if (tableNumElement && currentTableNumber) {
         tableNumElement.textContent = currentTableNumber;
     }
 
-    // อัปเดตในหน้าอื่นๆ ด้วย
-    const tableInfoElements = document.querySelectorAll(".table-info");
+    const tableInfoElements = document.querySelectorAll('.table-info');
     tableInfoElements.forEach((elem) => {
         if (currentTableNumber) {
             elem.textContent = `โต๊ะที่ - ${currentTableNumber}`;
@@ -144,658 +169,109 @@ function updateTableDisplay() {
     });
 }
 
-// ฟังก์ชันแสดงหน้าเมนู
-function showMenuPage() {
-    document.getElementById("qr-page").classList.remove("active");
-    document.getElementById("menu-page").classList.add("active");
-}
-
-// ฟังก์ชันย้อนกลับหน้าแรก
-function goBackToQR() {
-    document.getElementById("menu-page").classList.remove("active");
-    document.getElementById("qr-page").classList.add("active");
-}
-
-// ฟังก์ชันเลือกเมนู
-function selectMenuItem(menuName) {
-    // กำหนดราคาคงที่: ธรรมดา 50 บาท พิเศษ 60 บาท
-    currentItem = {
-        name: menuName,
-        normalPrice: 50,
-        specialPrice: 60,
-    };
-
-    // อัพเดทหน้าเลือกตัวเลือก
-    document.getElementById("selected-menu-name").textContent = menuName;
-    document.getElementById("normal-price").textContent = "50 บาท";
-    document.getElementById("special-price").textContent = "60 บาท";
-
-    // รีเซ็ตค่าเริ่มต้น
-    currentQuantity = 1;
-    document.getElementById("quantity").textContent = currentQuantity;
-    document.getElementById("normal-size").checked = true;
-    document.getElementById("special-size").checked = false;
-
-    // ซ่อน/แสดงส่วนเลือกเส้นสำหรับเกาเหลา
-    const noodleSection = document.querySelector(".option-group");
-    if (menuName === "เกาเหลา") {
-        noodleSection.style.display = "none";
-    } else {
-        noodleSection.style.display = "block";
-        // รีเซ็ตตัวเลือกเส้น
-        document.querySelector(
-            'input[name="noodle"][value="เส้นเล็ก"]',
-        ).checked = true;
-    }
-
-    // รีเซ็ต checkbox และเปิดใช้งานคืน
-    document.querySelectorAll('input[name="meatball"]').forEach((cb) => {
-        cb.checked = false;
-        cb.disabled = false; // เปิดใช้งานคืนสำหรับออเดอร์ใหม่
-    });
-    document.querySelector(
-        'input[name="meatball"][value="ลูกชิ้นหมู"]',
-    ).checked = true;
-
-    document
-        .querySelectorAll('input[name="vegetable"]')
-        .forEach((cb) => (cb.checked = false));
-    document.querySelector('input[name="vegetable"][value="ผักบุ้ง"]').checked =
-        true;
-
-    // ตรวจสอบการจำกัดลูกชิ้นหลังจากรีเซ็ต
-    limitMeatballSelection();
-
-    document.getElementById("special-note").value = "";
-
-    // คำนวณราคา
-    calculateTotal();
-
-    // ตรวจสอบว่าใช้ modal หรือ page navigation
-    const optionModal = document.getElementById("option-modal");
-    const optionPage = document.getElementById("option-page");
-    const menuPage = document.getElementById("menu-page");
-    
-    if (optionModal) {
-        // ถ้าเป็น modal (menu.html) ให้เปิด modal
-        optionModal.style.display = "flex";
-    } else if (optionPage && menuPage) {
-        // ถ้าเป็น page navigation (index.html/single page app)
-        menuPage.classList.remove("active");
-        optionPage.classList.add("active");
-        // เลื่อนขึ้นบนสุด
-        optionPage.scrollTop = 0;
+// ==================== Menu Functions ====================
+async function loadMenuFromAPI() {
+    try {
+        const result = await apiCall('/menu.php?active_only=true');
+        menuItems = result.data || [];
+        updateMenuDisplay();
+    } catch (error) {
+        console.error('Error loading menu:', error);
+        menuItems = [];
     }
 }
 
-// ฟังก์ชันกลับไปหน้าเมนู
-function goBackToMenu() {
-    document.getElementById("option-page").classList.remove("active");
-    document.getElementById("menu-page").classList.add("active");
-}
+function updateMenuDisplay() {
+    const menuListContainer = document.querySelector('.menu-list .menu-category');
+    if (!menuListContainer) return;
 
-// ฟังก์ชันเพิ่ม/ลดจำนวน
-function increaseQuantity() {
-    currentQuantity++;
-    document.getElementById("quantity").textContent = currentQuantity;
-    calculateTotal();
-}
-
-function decreaseQuantity() {
-    if (currentQuantity > 1) {
-        currentQuantity--;
-        document.getElementById("quantity").textContent = currentQuantity;
-        calculateTotal();
-    }
-}
-
-// ฟังก์ชันคำนวณราคารวม
-function calculateTotal() {
-    if (!currentItem) return;
-
-    const sizeSelection = document.querySelector('input[name="size"]:checked');
-    let total = 0;
-
-    if (sizeSelection) {
-        if (sizeSelection.value === "normal") {
-            total = currentItem.normalPrice * currentQuantity;
-        } else if (sizeSelection.value === "special") {
-            total = currentItem.specialPrice * currentQuantity;
-        }
+    const header = menuListContainer.querySelector('h3');
+    menuListContainer.innerHTML = '';
+    if (header) {
+        menuListContainer.appendChild(header);
     }
 
-    document.getElementById("item-total").textContent = total + " บาท";
-}
-
-// จำกัดการเลือกลูกชิ้นไม่เกิน 3 ชนิด
-function limitMeatballSelection() {
-    const meatballCheckboxes = document.querySelectorAll(
-        'input[name="meatball"]',
-    );
-    const checkedMeatballs = document.querySelectorAll(
-        'input[name="meatball"]:checked',
-    );
-
-    if (checkedMeatballs.length >= 3) {
-        meatballCheckboxes.forEach((cb) => {
-            if (!cb.checked) {
-                cb.disabled = true;
-            }
-        });
-    } else {
-        meatballCheckboxes.forEach((cb) => {
-            cb.disabled = false;
-        });
-    }
-}
-
-// เพิ่ม event listener สำหรับการเปลี่ยนแปลงขนาด
-document.addEventListener("DOMContentLoaded", function () {
-    const sizeRadios = document.querySelectorAll('input[name="size"]');
-
-    sizeRadios.forEach((radio) => {
-        radio.addEventListener("change", calculateTotal);
-    });
-
-    // เพิ่ม event listener สำหรับการจำกัดลูกชิ้น
-    const meatballCheckboxes = document.querySelectorAll(
-        'input[name="meatball"]',
-    );
-    meatballCheckboxes.forEach((cb) => {
-        cb.addEventListener("change", limitMeatballSelection);
-    });
-});
-
-// ฟังก์ชันเพิ่มลงตะกร้า
-function addToCart() {
-    if (!currentItem) return;
-
-    const sizeSelection = document.querySelector('input[name="size"]:checked');
-
-    if (!sizeSelection) {
-        alert("กรุณาเลือกขนาดอาหาร");
-        return;
-    }
-
-    // รวบรวมตัวเลือกที่เลือก
-    const noodleType =
-        currentItem.name === "เกาเหลา"
-            ? "ไม่มีเส้น"
-            : document.querySelector('input[name="noodle"]:checked')?.value ||
-              "";
-
-    const selectedMeatballs = [];
-    document
-        .querySelectorAll('input[name="meatball"]:checked')
-        .forEach((cb) => {
-            selectedMeatballs.push(cb.value);
-        });
-
-    const selectedVegetables = [];
-    document
-        .querySelectorAll('input[name="vegetable"]:checked')
-        .forEach((cb) => {
-            selectedVegetables.push(cb.value);
-        });
-
-    const specialNote = document.getElementById("special-note").value;
-
-    // สร้างรายการสำหรับตะกร้า
-    let total = 0;
-    if (sizeSelection.value === "normal") {
-        total = currentItem.normalPrice * currentQuantity;
-    } else if (sizeSelection.value === "special") {
-        total = currentItem.specialPrice * currentQuantity;
-    }
-
-    const cartItem = {
-        id: Date.now(),
-        name: currentItem.name,
-        normalQty: sizeSelection.value === "normal" ? currentQuantity : 0,
-        specialQty: sizeSelection.value === "special" ? currentQuantity : 0,
-        normalPrice: currentItem.normalPrice,
-        specialPrice: currentItem.specialPrice,
-        noodleType: noodleType,
-        meatballs: selectedMeatballs,
-        vegetables: selectedVegetables,
-        note: specialNote,
-        total: total,
-    };
-
-    cart.push(cartItem);
-    updateCartDisplay();
-
-    // แสดงข้อความสำเร็จ
-    alert("เพิ่มเมนูลงตะกร้าเรียบร้อย!");
-
-    // ตรวจสอบว่าใช้ modal หรือ page navigation
-    const optionModal = document.getElementById("option-modal");
-    const optionPage = document.getElementById("option-page");
-    
-    if (optionModal) {
-        // ถ้าเป็น modal (menu.html) ให้ปิด modal
-        optionModal.style.display = "none";
-    } else if (optionPage) {
-        // ถ้าเป็น page navigation (index.html/single page app)
-        const cartPage = document.getElementById("cart-page");
-        if (cartPage) {
-            optionPage.classList.remove("active");
-            cartPage.classList.add("active");
-        }
-    }
-}
-
-// ฟังก์ชันอัพเดทการแสดงผลตะกร้า
-function updateCartDisplay() {
-    const cartItemsContainer = document.getElementById("cart-items");
-    const cartTotalElement = document.getElementById("cart-total-price");
-
-    // อัปเดตจำนวนสินค้าใน badge (สำหรับ menu.html)
-    const cartCount = document.getElementById("cart-count");
-    if (cartCount) {
-        cartCount.textContent = cart.length;
-    }
-
-    // ตรวจสอบว่า element มีอยู่หรือไม่ (อาจจะอยู่ในหน้าอื่นที่ไม่มี cart display)
-    if (!cartItemsContainer || !cartTotalElement) {
-        return;
-    }
-
-    // ล้างรายการเก่า
-    cartItemsContainer.innerHTML = "";
-
-    let totalPrice = 0;
-
-    cart.forEach((item) => {
-        const cartItemElement = document.createElement("div");
-        cartItemElement.className = "cart-item";
-
-        // สร้างรายละเอียดสินค้า
-        let itemDetails = [];
-        if (item.normalQty > 0) {
-            itemDetails.push(`ธรรมดา ${item.normalQty} ชาม`);
-        }
-        if (item.specialQty > 0) {
-            itemDetails.push(`พิเศษ ${item.specialQty} ชาม`);
-        }
-
-        cartItemElement.innerHTML = `
-            <div class="cart-item-header">
-                <div class="cart-item-name">${item.name}</div>
-                <div class="cart-item-image"></div>
+    menuItems.forEach((menu) => {
+        const menuElement = document.createElement('div');
+        menuElement.className = 'menu-item';
+        menuElement.onclick = () => selectMenuItem(menu.name);
+        menuElement.innerHTML = `
+            <div class="menu-info">
+                <h4>${menu.name}</h4>
+                <p class="price">ธรรมดา 50 / พิเศษ 60 บาท</p>
             </div>
-            <div class="cart-item-details">${itemDetails.join(", ")}</div>
-            <div class="cart-item-details">เส้น: ${item.noodleType}</div>
-            ${item.meatballs.length > 0 ? `<div class="cart-item-details">ลูกชิ้น: ${item.meatballs.join(", ")}</div>` : ""}
-            ${item.vegetables.length > 0 ? `<div class="cart-item-details">ผัก: ${item.vegetables.join(", ")}</div>` : ""}
-            ${item.note ? `<div class="cart-item-details">หมายเหตุ: ${item.note}</div>` : ""}
-            <div class="cart-item-price">${item.total} บาท</div>
-            <div class="cart-item-actions">
-                <button onclick="editCartItem(${item.id})" class="edit-cart-btn">แก้ไข</button>
-                <button onclick="deleteCartItem(${item.id})" class="delete-cart-btn">ลบ</button>
-            </div>
+            <div class="menu-image"></div>
         `;
-
-        cartItemsContainer.appendChild(cartItemElement);
-        totalPrice += item.total;
+        menuListContainer.appendChild(menuElement);
     });
-
-    cartTotalElement.textContent = totalPrice + " บาท";
 }
 
-// ฟังก์ชันสร้างหมายเลขออเดอร์แบบลำดับ
-function generateOrderNumber() {
-    // โหลดหมายเลขออเดอร์ล่าสุดจาก localStorage
-    let lastOrderNumber = localStorage.getItem("lastOrderNumber");
-
-    if (lastOrderNumber === null) {
-        // ถ้าไม่มีในระบบ เริ่มจาก 0000
-        lastOrderNumber = 0;
-    } else {
-        lastOrderNumber = parseInt(lastOrderNumber);
-    }
-
-    // เพิ่มหมายเลขขึ้น 1
-    lastOrderNumber += 1;
-
-    // ถ้าเกิน 9999 ให้กลับไป 0000
-    if (lastOrderNumber > 9999) {
-        lastOrderNumber = 0;
-    }
-
-    // บันทึกหมายเลขล่าสุดลง localStorage
-    localStorage.setItem("lastOrderNumber", lastOrderNumber.toString());
-
-    // ส่งคืนตัวเลข (numeric) เพื่อให้ admin functions ทำงานถูกต้อง
-    return lastOrderNumber;
-}
-
-// ฟังก์ชันแปลงหมายเลขออเดอร์เป็นรูปแบบ 4 หลักสำหรับการแสดงผล
-function formatOrderId(orderId) {
-    return orderId.toString().padStart(4, "0");
-}
-
-// ฟังก์ชันสั่งอาหาร
-function placeOrder() {
-    if (cart.length === 0) {
-        alert("ไม่มีรายการในตะกร้า");
-        return;
-    }
-
-    // คำนวณราคารวม
-    const totalAmount = cart.reduce((sum, item) => sum + item.total, 0);
-
-    // สร้างหมายเลขออเดอร์แบบลำดับ
-    const orderNumber = generateOrderNumber();
-
-    // เก็บประวัติการสั่งซื้อ
-    const order = {
-        id: orderNumber, // ใช้หมายเลขลำดับแทน timestamp (เก็บเป็น numeric เพื่อ admin functions)
-        timestamp: new Date(),
-        tableNumber: currentTableNumber, // บันทึกหมายเลขโต๊ะ
-        items: [...cart],
-        paymentMethod: "pending", // รอแอดมินถาม
-        paymentText: "รอแอดมินถาม",
-        total: totalAmount,
-        status: "pending_payment", // สถานะรอการชำระเงิน
-    };
-
-    orderHistory.push(order);
-
-    // บันทึกลง localStorage เพื่อให้คงอยู่ระหว่างการรีเฟรช
-    saveOrderHistory();
-
-    // แสดงหมายเลขออเดอร์ 4 หลัก สำหรับ UI
-    const displayOrderId = formatOrderId(orderNumber);
-    alert(
-        `สั่งอาหารเรียบร้อยแล้ว!\nหมายเลขออเดอร์: #${displayOrderId}\nยอดรวม: ${totalAmount} บาท\nพนักงานจะมาถามวิธีการชำระเงิน\nรอสักครู่อาหารจะมาเสิร์ฟ`,
-    );
-
-    // รีเซ็ตตะกร้า
-    cart = [];
-    updateCartDisplay();
-
-    // กลับไปหน้าเมนู
-    document.getElementById("cart-page").classList.remove("active");
-    document.getElementById("menu-page").classList.add("active");
-}
-
-// ฟังก์ชันแก้ไขรายการในตะกร้า
-function editCartItem(itemId) {
-    // หารายการที่ต้องการแก้ไข
-    const itemIndex = cart.findIndex((item) => item.id === itemId);
-    if (itemIndex === -1) return;
-
-    const item = cart[itemIndex];
-
-    // ลบรายการออกจากตะกร้าชั่วคราว
-    cart.splice(itemIndex, 1);
-
-    // ตั้งค่าข้อมูลเมนูปัจจุบัน
-    currentItem = {
-        name: item.name,
-        normalPrice: item.normalPrice,
-        specialPrice: item.specialPrice,
-    };
-
-    // อัพเดทหน้าเลือกตัวเลือกด้วยข้อมูลเดิม
-    document.getElementById("selected-menu-name").textContent = item.name;
-    document.getElementById("normal-price").textContent =
-        item.normalPrice + " บาท";
-    document.getElementById("special-price").textContent =
-        item.specialPrice + " บาท";
-
-    // ตั้งค่าจำนวนและขนาด
-    if (item.normalQty > 0) {
-        currentQuantity = item.normalQty;
-        document.getElementById("normal-size").checked = true;
-    } else if (item.specialQty > 0) {
-        currentQuantity = item.specialQty;
-        document.getElementById("special-size").checked = true;
-    }
-    document.getElementById("quantity").textContent = currentQuantity;
-
-    // ซ่อน/แสดงส่วนเลือกเส้นสำหรับเกาเหลา
-    const noodleSection = document.querySelector(".option-group");
-    if (item.name === "เกาเหลา") {
-        noodleSection.style.display = "none";
-    } else {
-        noodleSection.style.display = "block";
-        // ตั้งค่าตัวเลือกเส้น
-        document.querySelectorAll('input[name="noodle"]').forEach((radio) => {
-            if (radio.value === item.noodleType) {
-                radio.checked = true;
-            }
-        });
-    }
-
-    // ตั้งค่าลูกชิ้น
-    document.querySelectorAll('input[name="meatball"]').forEach((cb) => {
-        cb.checked = item.meatballs.includes(cb.value);
-        cb.disabled = false;
-    });
-    limitMeatballSelection();
-
-    // ตั้งค่าผัก
-    document.querySelectorAll('input[name="vegetable"]').forEach((cb) => {
-        cb.checked = item.vegetables.includes(cb.value);
-    });
-
-    // ตั้งค่าหมายเหตุ
-    document.getElementById("special-note").value = item.note;
-
-    // คำนวณราคา
-    calculateTotal();
-
-    // แสดงหน้าเลือกตัวเลือก
-    document.getElementById("cart-page").classList.remove("active");
-    document.getElementById("option-page").classList.add("active");
-
-    // เลื่อนขึ้นบนสุด
-    document.getElementById("option-page").scrollTop = 0;
-}
-
-// ฟังก์ชันลบรายการออกจากตะกร้า
-function deleteCartItem(itemId) {
-    if (confirm("คุณต้องการลบรายการนี้หรือไม่?")) {
-        cart = cart.filter((item) => item.id !== itemId);
-        updateCartDisplay();
-    }
-}
-
-// ฟังก์ชันเพิ่มเติมสำหรับการนำทาง (ใช้สำหรับ single-page app เท่านั้น)
-function showCartPage() {
-    const menuPage = document.getElementById("menu-page");
-    const cartPage = document.getElementById("cart-page");
-    
-    // ตรวจสอบว่า elements มีอยู่จริง (ใช้ได้กับ single-page app เท่านั้น)
-    if (menuPage && cartPage) {
-        menuPage.classList.remove("active");
-        cartPage.classList.add("active");
-        updateCartDisplay();
-    }
-}
-
-// ฟังก์ชันย้อนกลับจากหน้าตะกร้าไปหน้าเมนู (ใช้สำหรับ single-page app เท่านั้น)
-function goBackToMenuFromCart() {
-    const cartPage = document.getElementById("cart-page");
-    const menuPage = document.getElementById("menu-page");
-    
-    // ตรวจสอบว่า elements มีอยู่จริง (ใช้ได้กับ single-page app เท่านั้น)
-    if (cartPage && menuPage) {
-        cartPage.classList.remove("active");
-        menuPage.classList.add("active");
-    }
-}
-
-// โหลดข้อมูลเริ่มต้น
-document.addEventListener("DOMContentLoaded", function () {
-    // โหลดข้อมูลโต๊ะ
-    loadTables();
-    // โหลดหมายเลขโต๊ะจาก URL
-    getTableFromURL();
-    // โหลดประวัติการสั่งซื้อเมื่อเริ่มต้น
-    loadOrderHistory();
-    // ถ้าไม่มีข้อมูลในประวัติ ให้เพิ่มข้อมูลตัวอย่าง
-    if (orderHistory.length === 0) {
-        initializeSampleData();
-    }
-});
-
-// ฟังก์ชันสำหรับระบบแอดมิน
-function showAdminLogin() {
-    document.getElementById("qr-page").classList.remove("active");
-    document.getElementById("admin-login-page").classList.add("active");
-}
-
-function goBackToQR() {
-    document.getElementById("admin-login-page").classList.remove("active");
-    document.getElementById("qr-page").classList.add("active");
-}
-
-function adminLogin() {
-    const password = document.getElementById("admin-password").value;
-
-    if (password === "111223") {
-        isAdminLoggedIn = true;
-        document.getElementById("admin-login-page").classList.remove("active");
-        document.getElementById("admin-dashboard").classList.add("active");
-        document.getElementById("admin-password").value = "";
-    } else {
-        alert("รหัสผ่านไม่ถูกต้อง");
-        document.getElementById("admin-password").value = "";
-    }
-}
-
-function adminLogout() {
-    isAdminLoggedIn = false;
-    const dashboardPage = document.getElementById("admin-dashboard");
-    const menuManagementPage = document.getElementById("menu-management-page");
-    const orderHistoryPage = document.getElementById("order-history-page");
-    const salesSummaryPage = document.getElementById("sales-summary-page");
-    const tableManagementPage = document.getElementById("table-management-page");
-    const qrPage = document.getElementById("qr-page");
-    const adminLoginPage = document.getElementById("admin-login-page");
-
-    if (dashboardPage) dashboardPage.classList.remove("active");
-    if (menuManagementPage) menuManagementPage.classList.remove("active");
-    if (orderHistoryPage) orderHistoryPage.classList.remove("active");
-    if (salesSummaryPage) salesSummaryPage.classList.remove("active");
-    if (tableManagementPage) tableManagementPage.classList.remove("active");
-    
-    // กลับไปหน้า qr-page (สำหรับ index.html) หรือ admin-login-page (สำหรับ admin.html)
-    if (qrPage) {
-        qrPage.classList.add("active");
-    } else if (adminLoginPage) {
-        adminLoginPage.classList.add("active");
-    }
-}
-
-function showMenuManagement() {
-    document.getElementById("admin-dashboard").classList.remove("active");
-    document.getElementById("menu-management-page").classList.add("active");
-    displayMenuList();
-}
-
-function showOrderHistory() {
-    document.getElementById("admin-dashboard").classList.remove("active");
-    document.getElementById("order-history-page").classList.add("active");
-    displayOrderHistory();
-}
-
-function showSalesSummary() {
-    document.getElementById("admin-dashboard").classList.remove("active");
-    document.getElementById("sales-summary-page").classList.add("active");
-    displaySalesSummary();
-}
-
-function showTableManagement() {
-    document.getElementById("admin-dashboard").classList.remove("active");
-    document.getElementById("table-management-page").classList.add("active");
-    displayTableList();
-}
-
-function goBackToAdminDashboard() {
-    document.getElementById("menu-management-page").classList.remove("active");
-    document.getElementById("order-history-page").classList.remove("active");
-    document.getElementById("sales-summary-page").classList.remove("active");
-    document.getElementById("table-management-page").classList.remove("active");
-    document.getElementById("admin-dashboard").classList.add("active");
-}
-
-function showAddMenuForm() {
-    document.getElementById("add-menu-form").style.display = "block";
-    editingMenuId = null;
-    document.getElementById("new-menu-name").value = "";
-    document.getElementById("new-menu-price").value = "";
-}
-
-function cancelAddMenu() {
-    document.getElementById("add-menu-form").style.display = "none";
-    editingMenuId = null;
-}
-
-function addNewMenu() {
-    const name = document.getElementById("new-menu-name").value.trim();
-    // ใช้ราคาคงที่ 50 บาท ไม่อ่านจาก form
+async function addNewMenu() {
+    const name = document.getElementById('new-menu-name').value.trim();
     const price = 50;
 
     if (!name) {
-        alert("กรุณากรอกชื่อเมนู");
+        alert('กรุณากรอกชื่อเมนู');
         return;
     }
 
-    if (editingMenuId !== null) {
-        // แก้ไขเมนูที่มีอยู่
-        const menuIndex = menuItems.findIndex(
-            (item) => item.id === editingMenuId,
-        );
-        if (menuIndex !== -1) {
-            menuItems[menuIndex].name = name;
-            menuItems[menuIndex].price = price; // ราคาคงที่ 50 บาท
+    try {
+        if (editingMenuId !== null) {
+            await apiCall('/menu.php', 'PUT', {
+                id: editingMenuId,
+                name: name,
+                normal_price: 50,
+                special_price: 60
+            });
+        } else {
+            await apiCall('/menu.php', 'POST', {
+                name: name,
+                normal_price: 50,
+                special_price: 60
+            });
         }
-    } else {
-        // เพิ่มเมนูใหม่
-        const newId = Math.max(...menuItems.map((item) => item.id)) + 1;
-        menuItems.push({ id: newId, name: name, price: price }); // ราคาคงที่ 50 บาท
+        
+        await loadMenuFromAPI();
+        displayMenuList();
+        cancelAddMenu();
+        alert(editingMenuId !== null ? 'แก้ไขเมนูเรียบร้อยแล้ว' : 'เพิ่มเมนูใหม่เรียบร้อยแล้ว');
+    } catch (error) {
+        alert('เกิดข้อผิดพลาด: ' + error.message);
     }
-
-    updateMenuDisplay();
-    displayMenuList();
-    cancelAddMenu();
-    alert(
-        editingMenuId !== null
-            ? "แก้ไขเมนูเรียบร้อยแล้ว"
-            : "เพิ่มเมนูใหม่เรียบร้อยแล้ว",
-    );
 }
 
 function editMenu(id) {
-    const menu = menuItems.find((item) => item.id === id);
+    const menu = menuItems.find(item => item.id === id);
     if (menu) {
         editingMenuId = id;
-        document.getElementById("new-menu-name").value = menu.name;
-        document.getElementById("new-menu-price").value = menu.price;
-        document.getElementById("add-menu-form").style.display = "block";
+        document.getElementById('new-menu-name').value = menu.name;
+        document.getElementById('new-menu-price').value = menu.normal_price;
+        document.getElementById('add-menu-form').style.display = 'block';
     }
 }
 
-function deleteMenu(id) {
-    if (confirm("คุณต้องการลบเมนูนี้หรือไม่?")) {
-        menuItems = menuItems.filter((item) => item.id !== id);
-        updateMenuDisplay();
-        displayMenuList();
-        alert("ลบเมนูเรียบร้อยแล้ว");
+async function deleteMenu(id) {
+    if (confirm('คุณต้องการลบเมนูนี้หรือไม่?')) {
+        try {
+            await apiCall(`/menu.php?id=${id}`, 'DELETE');
+            await loadMenuFromAPI();
+            displayMenuList();
+            alert('ลบเมนูเรียบร้อยแล้ว');
+        } catch (error) {
+            alert('เกิดข้อผิดพลาด: ' + error.message);
+        }
     }
 }
 
 function displayMenuList() {
-    const menuListContainer = document.getElementById("menu-list-admin");
-    menuListContainer.innerHTML = "";
+    const menuListContainer = document.getElementById('menu-list-admin');
+    if (!menuListContainer) return;
+    
+    menuListContainer.innerHTML = '';
 
     menuItems.forEach((menu) => {
-        const menuElement = document.createElement("div");
-        menuElement.className = "admin-menu-item";
+        const menuElement = document.createElement('div');
+        menuElement.className = 'admin-menu-item';
         menuElement.innerHTML = `
             <div>
                 <h4>${menu.name}</h4>
@@ -810,143 +286,135 @@ function displayMenuList() {
     });
 }
 
-function updateMenuDisplay() {
-    const menuListContainer = document.querySelector(
-        ".menu-list .menu-category",
-    );
+// ==================== Order Functions ====================
+async function placeOrder() {
+    if (cart.length === 0) {
+        alert('ไม่มีรายการในตะกร้า');
+        return;
+    }
 
-    // ลบเมนูเก่าออก (เก็บเฉพาะ header)
-    const header = menuListContainer.querySelector("h3");
-    menuListContainer.innerHTML = "";
-    menuListContainer.appendChild(header);
+    const totalAmount = cart.reduce((sum, item) => sum + item.total, 0);
 
-    // เพิ่มเมนูใหม่
-    menuItems.forEach((menu) => {
-        const menuElement = document.createElement("div");
-        menuElement.className = "menu-item";
-        menuElement.onclick = () => selectMenuItem(menu.name);
-        menuElement.innerHTML = `
-            <div class="menu-info">
-                <h4>${menu.name}</h4>
-                <p class="price">ธรรมดา 50 / พิเศษ 60 บาท</p>
-            </div>
-            <div class="menu-image"></div>
-        `;
-        menuListContainer.appendChild(menuElement);
-    });
-}
-
-// ฟังก์ชันบันทึกประวัติการสั่งซื้อ
-function saveOrderHistory() {
     try {
-        localStorage.setItem("orderHistory", JSON.stringify(orderHistory));
+        const result = await apiCall('/orders.php', 'POST', {
+            table_number: currentTableNumber,
+            total: totalAmount,
+            items: cart.map(item => ({
+                name: item.name,
+                normalQty: item.normalQty || 0,
+                specialQty: item.specialQty || 0,
+                normalPrice: item.normalPrice || 50,
+                specialPrice: item.specialPrice || 60,
+                noodleType: item.noodleType || '',
+                meatballs: item.meatballs || [],
+                vegetables: item.vegetables || [],
+                note: item.note || '',
+                total: item.total
+            }))
+        });
+
+        alert(
+            `สั่งอาหารเรียบร้อยแล้ว!\n` +
+            `หมายเลขออเดอร์: #${result.data.order_number}\n` +
+            `ยอดรวม: ${totalAmount} บาท\n\n` +
+            `พนักงานจะถามวิธีการชำระเงินในภายหลัง\n` +
+            `รอสักครู่อาหารจะมาเสิร์ฟ`
+        );
+
+        cart = [];
+        updateCartDisplay();
+        
+        window.location.href = `/?table=${currentTableNumber}`;
     } catch (error) {
-        console.log("ไม่สามารถบันทึกประวัติการสั่งซื้อได้");
+        alert('เกิดข้อผิดพลาดในการสั่งอาหาร: ' + error.message);
     }
 }
 
-// ฟังก์ชันโหลดประวัติการสั่งซื้อ
-function loadOrderHistory() {
+async function loadOrderHistory() {
     try {
-        const saved = localStorage.getItem("orderHistory");
-        if (saved && saved !== "[]") {
-            const parsed = JSON.parse(saved);
-            // แปลง timestamp string กลับเป็น Date object
-            orderHistory = parsed.map((order) => ({
-                ...order,
-                timestamp: new Date(order.timestamp),
-                status: order.status || "confirmed", // ให้ค่าเริ่มต้นกรณีไม่มี status
-            }));
-        } else {
-            // ถ้าไม่มีข้อมูลหรือเป็น array ว่าง ให้เตรียมข้อมูลตัวอย่าง
-            orderHistory = [];
-        }
+        const result = await apiCall('/orders.php');
+        orderHistory = result.data || [];
     } catch (error) {
-        console.log("ไม่สามารถโหลดประวัติการสั่งซื้อได้:", error);
+        console.error('Error loading orders:', error);
         orderHistory = [];
     }
 }
 
-function displayOrderHistory() {
-    const orderListContainer = document.getElementById("order-list");
-    orderListContainer.innerHTML = "";
-
-    // โหลดข้อมูลล่าสุดจาก localStorage
-    loadOrderHistory();
-
-    // ถ้าไม่มีข้อมูลในประวัติ ให้เพิ่มข้อมูลตัวอย่าง
-    if (orderHistory.length === 0) {
-        initializeSampleData();
+async function confirmPayment(orderId, paymentMethod) {
+    try {
+        await apiCall('/orders.php', 'PUT', {
+            id: orderId,
+            payment_method: paymentMethod,
+            status: 'confirmed'
+        });
+        
+        await loadOrderHistory();
+        displayOrderHistory();
+        alert('ยืนยันการชำระเงินเรียบร้อยแล้ว');
+    } catch (error) {
+        alert('เกิดข้อผิดพลาด: ' + error.message);
     }
+}
+
+function displayOrderHistory() {
+    const orderListContainer = document.getElementById('order-list');
+    if (!orderListContainer) return;
+    
+    orderListContainer.innerHTML = '';
 
     if (orderHistory.length === 0) {
-        orderListContainer.innerHTML =
-            '<div class="no-orders">ยังไม่มีรายการสั่งซื้อ</div>';
+        orderListContainer.innerHTML = '<div class="no-orders">ยังไม่มีรายการสั่งซื้อ</div>';
         return;
     }
 
-    // เรียงลำดับจากใหม่ไปเก่า
     const sortedOrders = [...orderHistory].reverse();
 
     sortedOrders.forEach((order) => {
-        const orderElement = document.createElement("div");
-        orderElement.className = "order-item";
+        const orderElement = document.createElement('div');
+        orderElement.className = 'order-item';
 
-        const paymentClass =
-            order.paymentMethod === "transfer" ? "transfer" : "";
+        const paymentClass = order.payment_method === 'transfer' ? 'transfer' : '';
 
-        let itemsHtml = "";
+        let itemsHtml = '';
         order.items.forEach((item) => {
             let itemDetails = [];
-            if (item.normalQty > 0)
-                itemDetails.push(`ธรรมดา ${item.normalQty} ชาม`);
-            if (item.specialQty > 0)
-                itemDetails.push(`พิเศษ ${item.specialQty} ชาม`);
+            if (item.normal_qty > 0) itemDetails.push(`ธรรมดา ${item.normal_qty} ชาม`);
+            if (item.special_qty > 0) itemDetails.push(`พิเศษ ${item.special_qty} ชาม`);
 
             itemsHtml += `
                 <div class="order-item-detail">
-                    <strong>${item.name}</strong> - ${itemDetails.join(", ")} (${item.total} บาท)
-                    <br>เส้น: ${item.noodleType}
-                    ${item.meatballs.length > 0 ? "<br>ลูกชิ้น: " + item.meatballs.join(", ") : ""}
-                    ${item.vegetables.length > 0 ? "<br>ผัก: " + item.vegetables.join(", ") : ""}
-                    ${item.note ? "<br>หมายเหตุ: " + item.note : ""}
+                    <strong>${item.menu_name}</strong> - ${itemDetails.join(', ')} (${item.item_total} บาท)
+                    <br>เส้น: ${item.noodle_type}
+                    ${item.meatballs ? '<br>ลูกชิ้น: ' + item.meatballs : ''}
+                    ${item.vegetables ? '<br>ผัก: ' + item.vegetables : ''}
+                    ${item.note ? '<br>หมายเหตุ: ' + item.note : ''}
                 </div>
             `;
         });
 
-        // แสดงหมายเลขออเดอร์ในรูปแบบ 4 หลักสำหรับ UI
-        const displayId = formatOrderId(order.id);
-        const orderStatus = order.status || "confirmed"; // กรณีที่ไม่มี status
+        const orderTime = new Date(order.order_date);
+        const timeStr = orderTime.toLocaleString('th-TH');
 
-        // ปลอดภัยกับ timestamp ที่อาจเป็น string
-        const orderTime = order.timestamp
-            ? new Date(order.timestamp)
-            : new Date();
-        const timeStr = orderTime.toLocaleString("th-TH");
-
-        const paymentButtons =
-            order.status === "pending_payment"
-                ? `
+        const paymentButtons = order.status === 'pending_payment' ? `
             <div class="payment-actions" style="margin-top: 10px;">
-                <button onclick="confirmPayment('${order.id}', 'cash')" class="payment-btn cash-btn">ยืนยันเงินสด</button>
-                <button onclick="confirmPayment('${order.id}', 'transfer')" class="payment-btn transfer-btn">ยืนยันโอนเงิน</button>
+                <button onclick="confirmPayment(${order.id}, 'cash')" class="payment-btn cash-btn">ยืนยันเงินสด</button>
+                <button onclick="confirmPayment(${order.id}, 'transfer')" class="payment-btn transfer-btn">ยืนยันโอนเงิน</button>
             </div>
-        `
-                : "";
+        ` : '';
 
         orderElement.innerHTML = `
             <div class="order-header">
-                <span class="order-id">ออเดอร์ #${displayId} ${order.tableNumber ? `<br><small style="font-size: 14px; color: #666;">โต๊ะที่ ${order.tableNumber}</small>` : ""}</span>
+                <span class="order-id">ออเดอร์ #${order.order_number} ${order.table_number ? `<br><small style="font-size: 14px; color: #666;">โต๊ะที่ ${order.table_number}</small>` : ''}</span>
                 <div>
-                    <span class="order-payment ${paymentClass}">${order.paymentText}</span>
+                    <span class="order-payment ${paymentClass}">${order.payment_text}</span>
                     <div class="order-time">${timeStr}</div>
                 </div>
             </div>
             <div class="order-details">
                 ${itemsHtml}
             </div>
-            <div class="order-total">รวม: ${order.total} บาท</div>
-            <div class="order-status">สถานะ: ${orderStatus === "confirmed" ? "ยืนยันแล้ว" : orderStatus === "pending_payment" ? "รอยืนยันการชำระเงิน" : "รอดำเนินการ"}</div>
+            <div class="order-total">รวม: ${order.total_amount} บาท</div>
+            <div class="order-status">สถานะ: ${order.status === 'confirmed' ? 'ยืนยันแล้ว' : order.status === 'pending_payment' ? 'รอยืนยันการชำระเงิน' : 'รอดำเนินการ'}</div>
             ${paymentButtons}
         `;
 
@@ -954,36 +422,13 @@ function displayOrderHistory() {
     });
 }
 
-// ฟังก์ชันยืนยันการชำระเงิน
-function confirmPayment(orderId, paymentMethod) {
-    const orderIndex = orderHistory.findIndex(
-        (order) => order.id.toString() === orderId.toString(),
-    );
-    if (orderIndex !== -1) {
-        orderHistory[orderIndex].paymentMethod = paymentMethod;
-        orderHistory[orderIndex].paymentText =
-            paymentMethod === "cash" ? "เงินสด" : "โอนเงิน";
-        orderHistory[orderIndex].status = "confirmed";
-        saveOrderHistory();
-        displayOrderHistory(); // รีเฟรชการแสดงผล
-        alert("ยืนยันการชำระเงินเรียบร้อยแล้ว");
-    }
-}
+// ==================== Statistics Functions ====================
+async function displaySalesSummary() {
+    const salesContainer = document.getElementById('sales-summary');
+    if (!salesContainer) return;
 
-function displaySalesSummary() {
-    const salesContainer = document.getElementById("sales-summary");
-    salesContainer.innerHTML = "";
+    salesContainer.innerHTML = '';
 
-    // โหลดข้อมูลล่าสุดจาก localStorage
-    loadOrderHistory();
-
-    if (orderHistory.length === 0) {
-        salesContainer.innerHTML =
-            '<div class="no-sales">ยังไม่มีรายการขาย</div>';
-        return;
-    }
-
-    // เพิ่มตัวเลือกช่วงเวลา
     const periodButtons = `
         <div class="period-selector" style="margin-bottom: 20px;">
             <button onclick="showSalesByPeriod('daily')" class="period-btn">รายวัน</button>
@@ -994,220 +439,234 @@ function displaySalesSummary() {
     `;
 
     salesContainer.innerHTML = periodButtons + '<div id="sales-data"></div>';
-    showSalesByPeriod("all");
+    showSalesByPeriod('all');
 }
-function showSalesByPeriod(period) {
-    // ลบ active class จากปุ่มทั้งหมด
-    document
-        .querySelectorAll(".period-btn")
-        .forEach((btn) => btn.classList.remove("active"));
-    event.target.classList.add("active");
 
-    let filteredOrders = [...orderHistory];
-    const now = new Date();
+async function showSalesByPeriod(period) {
+    document.querySelectorAll('.period-btn').forEach((btn) => btn.classList.remove('active'));
+    event.target.classList.add('active');
 
-    if (period === "daily") {
-        const today = new Date(
-            now.getFullYear(),
-            now.getMonth(),
-            now.getDate(),
-        );
-        filteredOrders = orderHistory.filter((order) => {
-            const orderDate = new Date(order.timestamp);
-            return orderDate >= today;
-        });
-    } else if (period === "weekly") {
-        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        filteredOrders = orderHistory.filter((order) => {
-            const orderDate = new Date(order.timestamp);
-            return orderDate >= weekAgo;
-        });
-    } else if (period === "monthly") {
-        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        filteredOrders = orderHistory.filter((order) => {
-            const orderDate = new Date(order.timestamp);
-            return orderDate >= monthAgo;
-        });
-    }
+    try {
+        const result = await apiCall(`/statistics.php?period=${period}`);
+        const stats = result.data;
 
-    // คำนวณสถิติ
-    const totalOrders = filteredOrders.length;
-    const totalRevenue = filteredOrders.reduce(
-        (sum, order) => sum + order.total,
-        0,
-    );
-    const averageOrderValue =
-        totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
+        const summary = stats.summary;
+        const menuSales = stats.menu_sales || [];
 
-    // นับจำนวนการชำระแต่ละประเภท
-    const cashOrders = filteredOrders.filter(
-        (order) => order.paymentMethod === "cash",
-    ).length;
-    const transferOrders = filteredOrders.filter(
-        (order) => order.paymentMethod === "transfer",
-    ).length;
-    const pendingOrders = filteredOrders.filter(
-        (order) => order.paymentMethod === "pending",
-    ).length;
-    const cashRevenue = filteredOrders
-        .filter((order) => order.paymentMethod === "cash")
-        .reduce((sum, order) => sum + order.total, 0);
-    const transferRevenue = filteredOrders
-        .filter((order) => order.paymentMethod === "transfer")
-        .reduce((sum, order) => sum + order.total, 0);
+        const periodText = {
+            daily: 'วันนี้',
+            weekly: 'สัปดาห์นี้',
+            monthly: 'เดือนนี้',
+            all: 'ทั้งหมด'
+        };
 
-    // นับยอดขายแต่ละเมนู
-    const menuSales = {};
-    filteredOrders.forEach((order) => {
-        order.items.forEach((item) => {
-            if (!menuSales[item.name]) {
-                menuSales[item.name] = { qty: 0, revenue: 0 };
-            }
-            const totalQty = (item.normalQty || 0) + (item.specialQty || 0);
-            menuSales[item.name].qty += totalQty;
-            menuSales[item.name].revenue += item.total;
-        });
-    });
-
-    // เรียงลำดับเมนูตามยอดขาย
-    const sortedMenuSales = Object.entries(menuSales).sort(
-        (a, b) => b[1].revenue - a[1].revenue,
-    );
-
-    const periodText = {
-        daily: "วันนี้",
-        weekly: "สัปดาห์นี้",
-        monthly: "เดือนนี้",
-        all: "ทั้งหมด",
-    };
-
-    // สร้าง HTML
-    const summaryHTML = `
-        <div class="summary-stats">
-            <h3>สถิติรวม (${periodText[period]})</h3>
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <div class="stat-value">${totalOrders}</div>
-                    <div class="stat-label">จำนวนออเดอร์</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value">${totalRevenue.toLocaleString()}</div>
-                    <div class="stat-label">ยอดขาย (บาท)</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value">${averageOrderValue}</div>
-                    <div class="stat-label">ยอดเฉลี่ยต่อออเดอร์</div>
+        const summaryHTML = `
+            <div class="summary-stats">
+                <h3>สถิติรวม (${periodText[period]})</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value">${summary.total_orders}</div>
+                        <div class="stat-label">จำนวนออเดอร์</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">${parseFloat(summary.total_revenue).toLocaleString()}</div>
+                        <div class="stat-label">ยอดขาย (บาท)</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">${Math.round(parseFloat(summary.average_order_value))}</div>
+                        <div class="stat-label">ยอดเฉลี่ยต่อออเดอร์</div>
+                    </div>
                 </div>
             </div>
-        </div>
-        
-        <div class="payment-stats">
-            <h3>สถิติการชำระเงิน</h3>
-            <div class="payment-grid">
-                <div class="payment-item">
-                    <div class="payment-type">เงินสด</div>
-                    <div class="payment-details">
-                        <span>จำนวน: ${cashOrders} ครั้ง</span>
-                        <span>ยอดเงิน: ${cashRevenue.toLocaleString()} บาท</span>
-                    </div>
-                </div>
-                <div class="payment-item">
-                    <div class="payment-type">โอนเงิน</div>
-                    <div class="payment-details">
-                        <span>จำนวน: ${transferOrders} ครั้ง</span>
-                        <span>ยอดเงิน: ${transferRevenue.toLocaleString()} บาท</span>
-                    </div>
-                </div>
-                ${
-                    pendingOrders > 0
-                        ? `
-                <div class="payment-item">
-                    <div class="payment-type">รอยืนยัน</div>
-                    <div class="payment-details">
-                        <span>จำนวน: ${pendingOrders} ครั้ง</span>
-                    </div>
-                </div>
-                `
-                        : ""
-                }
-            </div>
-        </div>
-        
-        ${
-            sortedMenuSales.length > 0
-                ? `
-        <div class="menu-sales-stats">
-            <h3>เมนูยอดนิยม</h3>
-            <div class="menu-sales-list">
-                ${sortedMenuSales
-                    .slice(0, 10)
-                    .map(
-                        (menu, index) => `
-                    <div class="menu-sales-item">
-                        <div class="rank">${index + 1}</div>
-                        <div class="menu-name">${menu[0]}</div>
-                        <div class="menu-stats">
-                            <div>ขาย: ${menu[1].qty} ชาม</div>
-                            <div>รายได้: ${menu[1].revenue.toLocaleString()} บาท</div>
+            
+            <div class="payment-stats">
+                <h3>สถิติการชำระเงิน</h3>
+                <div class="payment-grid">
+                    <div class="payment-item">
+                        <div class="payment-type">เงินสด</div>
+                        <div class="payment-details">
+                            <span>จำนวน: ${summary.cash_orders} ครั้ง</span>
+                            <span>ยอดเงิน: ${parseFloat(summary.cash_revenue).toLocaleString()} บาท</span>
                         </div>
                     </div>
-                `,
-                    )
-                    .join("")}
+                    <div class="payment-item">
+                        <div class="payment-type">โอนเงิน</div>
+                        <div class="payment-details">
+                            <span>จำนวน: ${summary.transfer_orders} ครั้ง</span>
+                            <span>ยอดเงิน: ${parseFloat(summary.transfer_revenue).toLocaleString()} บาท</span>
+                        </div>
+                    </div>
+                    ${summary.pending_orders > 0 ? `
+                    <div class="payment-item">
+                        <div class="payment-type">รอยืนยัน</div>
+                        <div class="payment-details">
+                            <span>จำนวน: ${summary.pending_orders} ครั้ง</span>
+                        </div>
+                    </div>
+                    ` : ''}
+                </div>
             </div>
-        </div>
-        `
-                : ""
-        }
-    `;
+            
+            ${menuSales.length > 0 ? `
+            <div class="menu-sales-stats">
+                <h3>เมนูยอดนิยม</h3>
+                <div class="menu-sales-list">
+                    ${menuSales.slice(0, 10).map((menu, index) => `
+                        <div class="menu-sales-item">
+                            <div class="rank">${index + 1}</div>
+                            <div class="menu-name">${menu.menu_name}</div>
+                            <div class="menu-stats">
+                                <div>ขาย: ${menu.total_qty} ชาม</div>
+                                <div>รายได้: ${parseFloat(menu.total_revenue).toLocaleString()} บาท</div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            ` : ''}
+        `;
 
-    document.getElementById("sales-data").innerHTML = summaryHTML;
+        document.getElementById('sales-data').innerHTML = summaryHTML;
+    } catch (error) {
+        document.getElementById('sales-data').innerHTML = '<div class="no-sales">เกิดข้อผิดพลาดในการโหลดข้อมูล</div>';
+    }
 }
 
-// ฟังก์ชันจัดการโต๊ะใน Admin
+// ==================== Admin Functions ====================
+async function adminLogin() {
+    const password = document.getElementById('admin-password').value;
+
+    try {
+        const result = await apiCall('/auth.php', 'POST', { password });
+        
+        if (result.success) {
+            isAdminLoggedIn = true;
+            document.getElementById('admin-login-page').classList.remove('active');
+            document.getElementById('admin-dashboard').classList.add('active');
+            document.getElementById('admin-password').value = '';
+        }
+    } catch (error) {
+        alert('รหัสผ่านไม่ถูกต้อง');
+        document.getElementById('admin-password').value = '';
+    }
+}
+
+async function adminLogout() {
+    try {
+        await apiCall('/auth.php', 'DELETE');
+        isAdminLoggedIn = false;
+        
+        const dashboardPage = document.getElementById('admin-dashboard');
+        const menuManagementPage = document.getElementById('menu-management-page');
+        const orderHistoryPage = document.getElementById('order-history-page');
+        const salesSummaryPage = document.getElementById('sales-summary-page');
+        const tableManagementPage = document.getElementById('table-management-page');
+        const qrPage = document.getElementById('qr-page');
+        const adminLoginPage = document.getElementById('admin-login-page');
+
+        if (dashboardPage) dashboardPage.classList.remove('active');
+        if (menuManagementPage) menuManagementPage.classList.remove('active');
+        if (orderHistoryPage) orderHistoryPage.classList.remove('active');
+        if (salesSummaryPage) salesSummaryPage.classList.remove('active');
+        if (tableManagementPage) tableManagementPage.classList.remove('active');
+        
+        if (qrPage) {
+            qrPage.classList.add('active');
+        } else if (adminLoginPage) {
+            adminLoginPage.classList.add('active');
+        }
+    } catch (error) {
+        console.error('Logout error:', error);
+    }
+}
+
+// ==================== UI Navigation Functions ====================
+function showMenuManagement() {
+    document.getElementById('admin-dashboard').classList.remove('active');
+    document.getElementById('menu-management-page').classList.add('active');
+    displayMenuList();
+}
+
+function showOrderHistory() {
+    document.getElementById('admin-dashboard').classList.remove('active');
+    document.getElementById('order-history-page').classList.add('active');
+    loadOrderHistory().then(() => displayOrderHistory());
+}
+
+function showSalesSummary() {
+    document.getElementById('admin-dashboard').classList.remove('active');
+    document.getElementById('sales-summary-page').classList.add('active');
+    displaySalesSummary();
+}
+
+function showTableManagement() {
+    document.getElementById('admin-dashboard').classList.remove('active');
+    document.getElementById('table-management-page').classList.add('active');
+    displayTableList();
+}
+
+function goBackToAdminDashboard() {
+    document.getElementById('menu-management-page').classList.remove('active');
+    document.getElementById('order-history-page').classList.remove('active');
+    document.getElementById('sales-summary-page').classList.remove('active');
+    document.getElementById('table-management-page').classList.remove('active');
+    document.getElementById('admin-dashboard').classList.add('active');
+}
+
+function showAddMenuForm() {
+    document.getElementById('add-menu-form').style.display = 'block';
+    editingMenuId = null;
+    document.getElementById('new-menu-name').value = '';
+    document.getElementById('new-menu-price').value = '50';
+}
+
+function cancelAddMenu() {
+    document.getElementById('add-menu-form').style.display = 'none';
+    editingMenuId = null;
+}
+
 function showAddTableForm() {
-    document.getElementById("add-table-form").style.display = "block";
-    document.getElementById("new-table-number").value = "";
+    document.getElementById('add-table-form').style.display = 'block';
+    document.getElementById('new-table-number').value = '';
 }
 
 function cancelAddTable() {
-    document.getElementById("add-table-form").style.display = "none";
+    document.getElementById('add-table-form').style.display = 'none';
 }
 
-function addNewTable() {
-    const tableNumber = parseInt(
-        document.getElementById("new-table-number").value,
-    );
+async function addNewTable() {
+    const tableNumber = parseInt(document.getElementById('new-table-number').value);
 
     if (!tableNumber || tableNumber < 1) {
-        alert("กรุณากรอกหมายเลขโต๊ะที่ถูกต้อง");
+        alert('กรุณากรอกหมายเลขโต๊ะที่ถูกต้อง');
         return;
     }
 
-    if (addTable(tableNumber)) {
-        alert("เพิ่มโต๊ะเรียบร้อยแล้ว");
+    if (await addTable(tableNumber)) {
+        alert('เพิ่มโต๊ะเรียบร้อยแล้ว');
         cancelAddTable();
         displayTableList();
     }
 }
 
 function displayTableList() {
-    const tableListContainer = document.getElementById("table-list-admin");
-    tableListContainer.innerHTML = "";
+    const tableListContainer = document.getElementById('table-list-admin');
+    if (!tableListContainer) return;
+    
+    tableListContainer.innerHTML = '';
 
     if (tables.length === 0) {
-        tableListContainer.innerHTML =
-            '<div class="no-data">ยังไม่มีข้อมูลโต๊ะ</div>';
+        tableListContainer.innerHTML = '<div class="no-data">ยังไม่มีข้อมูลโต๊ะ</div>';
         return;
     }
 
     tables.forEach((table) => {
-        const tableItem = document.createElement("div");
-        tableItem.className = "menu-item-admin";
+        const tableItem = document.createElement('div');
+        tableItem.className = 'menu-item-admin';
         tableItem.innerHTML = `
             <div class="menu-item-info">
-                <h4>โต๊ะที่ ${table.number}</h4>
-                <p>${table.name}</p>
+                <h4>โต๊ะที่ ${table.table_number}</h4>
+                <p>${table.table_name}</p>
             </div>
             <div class="menu-item-actions">
                 <button onclick="deleteTableAdmin(${table.id})" class="delete-btn">ลบ</button>
@@ -1217,375 +676,151 @@ function displayTableList() {
     });
 }
 
-function deleteTableAdmin(tableId) {
-    if (confirm("คุณต้องการลบโต๊ะนี้หรือไม่?")) {
-        deleteTable(tableId);
+async function deleteTableAdmin(tableId) {
+    if (confirm('คุณต้องการลบโต๊ะนี้หรือไม่?')) {
+        await deleteTable(tableId);
         displayTableList();
-        alert("ลบโต๊ะเรียบร้อยแล้ว");
+        alert('ลบโต๊ะเรียบร้อยแล้ว');
     }
 }
 
-// ฟังก์ชันสำหรับ Modal (หลายหน้า)
-function closeOptionModal() {
-    const optionModal = document.getElementById("option-modal");
-    if (optionModal) {
-        optionModal.style.display = "none";
-        document.body.style.overflow = "auto";
-    }
-}
-
-function closeEditModal() {
-    const editModal = document.getElementById("edit-modal");
-    if (editModal) {
-        editModal.style.display = "none";
-        document.body.style.overflow = "auto";
-    }
-}
-
-// ฟังก์ชันอัพเดท Cart Counter
-function updateCartCounter() {
-    const cartCount = document.getElementById("cart-count");
-    if (cartCount) {
-        const totalItems = cart.reduce(
-            (sum, item) => sum + item.normalQty + item.specialQty,
-            0,
-        );
-        cartCount.textContent = totalItems;
-    }
-}
-
-// ฟังก์ชันโหลด cart จาก localStorage
-function loadCart() {
-    const saved = localStorage.getItem("cart");
-    if (saved) {
-        cart = JSON.parse(saved);
-    }
-}
-
-// ฟังก์ชันบันทึก cart ลง localStorage
-function saveCart() {
-    localStorage.setItem("cart", JSON.stringify(cart));
-}
-
-// Real-time update: ฟังการเปลี่ยนแปลงจาก localStorage
-window.addEventListener("storage", function (e) {
-    if (e.key === "orderHistory") {
-        loadOrderHistory();
-        const orderHistoryPage = document.getElementById("order-history-page");
-        const salesSummaryPage = document.getElementById("sales-summary-page");
-
-        if (orderHistoryPage && orderHistoryPage.classList.contains("active")) {
-            displayOrderHistory();
-        }
-        if (salesSummaryPage && salesSummaryPage.classList.contains("active")) {
-            displaySalesSummary();
-        }
-    }
-
-    if (e.key === "cart") {
-        loadCart();
-        updateCartCounter();
-        const cartPage = document.getElementById("cart-page");
-        if (cartPage && cartPage.classList.contains("active")) {
-            updateCartDisplay();
-        }
-    }
-});
-
-// เมื่อโหลดหน้า - ใช้สำหรับหลายหน้า
-window.addEventListener("DOMContentLoaded", function () {
-    // โหลด cart และแสดง counter
-    loadCart();
-    updateCartCounter();
-
-    // ถ้าอยู่ในหน้า cart ให้แสดงรายการ
-    const cartPage = document.getElementById("cart-page");
-    if (cartPage && cartPage.classList.contains("active")) {
-        updateCartDisplay();
-    }
-
-    // ถ้าอยู่ในหน้า menu ให้ update counter
-    const menuPage = document.getElementById("menu-page");
-    if (menuPage && menuPage.classList.contains("active")) {
-        updateCartCounter();
-    }
-
-    // ถ้าอยู่ในหน้า admin
-    const adminLoginPage = document.getElementById("admin-login-page");
-    if (adminLoginPage && adminLoginPage.classList.contains("active")) {
-        loadOrderHistory();
-    }
-
-    // ถ้าอยู่ในหน้า admin dashboard
-    const adminDashboard = document.getElementById("admin-dashboard");
-    if (adminDashboard && adminDashboard.classList.contains("active")) {
-        loadOrderHistory();
-    }
-});
-
-// แทนที่ฟังก์ชันเดิมด้วยฟังก์ชันที่รองรับหลายหน้า
-const originalSelectMenuItem = selectMenuItem;
-selectMenuItem = function (menuName) {
-    const optionModal = document.getElementById("option-modal");
-
-    if (optionModal) {
-        // สำหรับหน้าแยก - ใช้ modal
-        currentItem = {
-            name: menuName,
-            normalPrice: 50,
-            specialPrice: 60,
-        };
-
-        document.getElementById("selected-menu-name").textContent = menuName;
-        document.getElementById("normal-price").textContent = "50 บาท";
-        document.getElementById("special-price").textContent = "60 บาท";
-
-        currentQuantity = 1;
-        document.getElementById("quantity").textContent = currentQuantity;
-        document.getElementById("normal-size").checked = true;
-        document.getElementById("special-size").checked = false;
-
-        const noodleSection = optionModal.querySelector(".option-group");
-        if (noodleSection) {
-            if (menuName === "เกาเหลา") {
-                noodleSection.style.display = "none";
-            } else {
-                noodleSection.style.display = "block";
-                optionModal.querySelector(
-                    'input[name="noodle"][value="เส้นเล็ก"]',
-                ).checked = true;
-            }
-        }
-
-        optionModal.querySelectorAll('input[name="meatball"]').forEach((cb) => {
-            cb.checked = false;
-            cb.disabled = false;
-        });
-        optionModal.querySelector(
-            'input[name="meatball"][value="ลูกชิ้นหมู"]',
-        ).checked = true;
-
-        optionModal
-            .querySelectorAll('input[name="vegetable"]')
-            .forEach((cb) => (cb.checked = false));
-        optionModal.querySelector(
-            'input[name="vegetable"][value="ผักบุ้ง"]',
-        ).checked = true;
-
-        document.getElementById("special-note").value = "";
-        calculateTotal();
-
-        optionModal.style.display = "block";
-        document.body.style.overflow = "hidden";
-    } else {
-        // สำหรับหน้าเดียว - ใช้ฟังก์ชันเดิม
-        originalSelectMenuItem(menuName);
-    }
-};
-
-// อัพเดท addToCart ให้บันทึก cart และปิด modal
-const originalAddToCart = addToCart;
-addToCart = function () {
-    originalAddToCart.call(this);
-    saveCart();
-    updateCartCounter();
-    closeOptionModal();
-};
-
-// อัพเดท placeOrder ให้ redirect กลับหน้าแรก
-const originalPlaceOrder = placeOrder;
-placeOrder = function () {
-    if (cart.length === 0) {
-        alert("ตะกร้าของคุณว่างเปล่า กรุณาเพิ่มสินค้าก่อนสั่งซื้อ");
-        return;
-    }
-
-    const orderNumber = generateOrderNumber();
-    const displayId = formatOrderId(orderNumber);
-
-    const newOrder = {
-        id: orderNumber,
-        timestamp: new Date(),
-        items: [...cart],
-        total: cart.reduce((sum, item) => sum + item.total, 0),
-        status: "pending_payment",
-        paymentMethod: null,
-        paymentText: "รอยืนยัน",
+// ==================== Cart Functions ====================
+function selectMenuItem(menuName) {
+    currentItem = {
+        name: menuName,
+        normalPrice: 50,
+        specialPrice: 60,
     };
 
-    orderHistory.push(newOrder);
-    saveOrderHistory();
+    document.getElementById('selected-menu-name').textContent = menuName;
+    document.getElementById('normal-price').textContent = '50 บาท';
+    document.getElementById('special-price').textContent = '60 บาท';
 
-    cart = [];
-    saveCart();
-    updateCartCounter();
+    currentQuantity = 1;
+    document.getElementById('quantity').textContent = currentQuantity;
+    document.getElementById('normal-size').checked = true;
+    document.getElementById('special-size').checked = false;
 
-    alert(
-        `สั่งอาหารเรียบร้อย!\nหมายเลขออเดอร์: #${displayId}\n\nพนักงานจะถามวิธีการชำระเงินในภายหลัง`,
-    );
-
-    // ตรวจสอบว่าอยู่ในหน้าแยกหรือไม่
-    if (window.location.pathname.includes("cart.html")) {
-        window.location.href = "index.html";
+    const noodleSection = document.querySelector('.option-group');
+    // เมนูที่ไม่มีเส้น: เกาเหลา และ ลูกชิ้นลวก
+    const noNoodleMenus = ['เกาเหลา', 'ลูกชิ้นลวก หมู/เนื้อ/เอ็น'];
+    if (noNoodleMenus.includes(menuName)) {
+        noodleSection.style.display = 'none';
     } else {
-        // ถ้าอยู่ในหน้าเดียว ให้แสดงหน้าแรก
-        document.getElementById("cart-page").classList.remove("active");
-        document.getElementById("qr-page").classList.add("active");
+        noodleSection.style.display = 'block';
+        document.querySelector('input[name="noodle"][value="เส้นเล็ก"]').checked = true;
     }
-};
 
-// อัพเดท editCartItem สำหรับหลายหน้า
-const originalEditCartItem = editCartItem;
-editCartItem = function (itemId) {
-    const editModal = document.getElementById("edit-modal");
+    document.querySelectorAll('input[name="meatball"]').forEach((cb) => {
+        cb.checked = false;
+        cb.disabled = false;
+    });
+    document.querySelector('input[name="meatball"][value="ลูกชิ้นหมู"]').checked = true;
 
-    if (editModal) {
-        // สำหรับหน้าแยก - ใช้ edit modal
-        const itemIndex = cart.findIndex((item) => item.id === itemId);
-        if (itemIndex === -1) return;
+    document.querySelectorAll('input[name="vegetable"]').forEach((cb) => (cb.checked = false));
+    document.querySelector('input[name="vegetable"][value="ผักบุ้ง"]').checked = true;
 
-        const item = cart[itemIndex];
+    limitMeatballSelection();
+    document.getElementById('special-note').value = '';
+    calculateTotal();
 
-        // เก็บ ID สำหรับบันทึกภายหลัง
-        window.editingItemId = itemId;
-        window.editingItemIndex = itemIndex;
-
-        // ตั้งค่าข้อมูลเมนูปัจจุบัน
-        currentItem = {
-            name: item.name,
-            normalPrice: item.normalPrice,
-            specialPrice: item.specialPrice,
-        };
-
-        document.getElementById("edit-menu-name").textContent = item.name;
-        document.getElementById("edit-normal-price").textContent =
-            item.normalPrice + " บาท";
-        document.getElementById("edit-special-price").textContent =
-            item.specialPrice + " บาท";
-
-        if (item.normalQty > 0) {
-            currentQuantity = item.normalQty;
-            document.getElementById("edit-normal-size").checked = true;
-        } else if (item.specialQty > 0) {
-            currentQuantity = item.specialQty;
-            document.getElementById("edit-special-size").checked = true;
-        }
-        document.getElementById("edit-quantity").textContent = currentQuantity;
-
-        const noodleSection = editModal.querySelector("#edit-noodle-section");
-        if (item.name === "เกาเหลา") {
-            noodleSection.style.display = "none";
-        } else {
-            noodleSection.style.display = "block";
-            editModal
-                .querySelectorAll('input[name="edit-noodle"]')
-                .forEach((radio) => {
-                    if (radio.value === item.noodleType) {
-                        radio.checked = true;
-                    }
-                });
-        }
-
-        editModal
-            .querySelectorAll('input[name="edit-meatball"]')
-            .forEach((cb) => {
-                cb.checked = item.meatballs.includes(cb.value);
-                cb.disabled = false;
-            });
-
-        editModal
-            .querySelectorAll('input[name="edit-vegetable"]')
-            .forEach((cb) => {
-                cb.checked = item.vegetables.includes(cb.value);
-            });
-
-        document.getElementById("edit-special-note").value = item.note;
-
-        calculateEditTotal();
-
-        editModal.style.display = "block";
-        document.body.style.overflow = "hidden";
-    } else {
-        // สำหรับหน้าเดียว
-        originalEditCartItem(itemId);
+    const optionModal = document.getElementById('option-modal');
+    if (optionModal) {
+        optionModal.style.display = 'flex';
     }
-};
+}
 
-function calculateEditTotal() {
+function closeOptionModal() {
+    const optionModal = document.getElementById('option-modal');
+    if (optionModal) {
+        optionModal.style.display = 'none';
+    }
+}
+
+function increaseQuantity() {
+    currentQuantity++;
+    document.getElementById('quantity').textContent = currentQuantity;
+    calculateTotal();
+}
+
+function decreaseQuantity() {
+    if (currentQuantity > 1) {
+        currentQuantity--;
+        document.getElementById('quantity').textContent = currentQuantity;
+        calculateTotal();
+    }
+}
+
+function calculateTotal() {
     if (!currentItem) return;
 
-    const sizeSelection = document.querySelector(
-        'input[name="edit-size"]:checked',
-    );
+    const sizeSelection = document.querySelector('input[name="size"]:checked');
     let total = 0;
 
     if (sizeSelection) {
-        if (sizeSelection.value === "normal") {
+        if (sizeSelection.value === 'normal') {
             total = currentItem.normalPrice * currentQuantity;
-        } else if (sizeSelection.value === "special") {
+        } else if (sizeSelection.value === 'special') {
             total = currentItem.specialPrice * currentQuantity;
         }
     }
 
-    const editItemTotal = document.getElementById("edit-item-total");
-    if (editItemTotal) {
-        editItemTotal.textContent = total + " บาท";
+    document.getElementById('item-total').textContent = total + ' บาท';
+}
+
+function limitMeatballSelection() {
+    const meatballCheckboxes = document.querySelectorAll('input[name="meatball"]');
+    const checkedMeatballs = document.querySelectorAll('input[name="meatball"]:checked');
+
+    if (checkedMeatballs.length >= 3) {
+        meatballCheckboxes.forEach((cb) => {
+            if (!cb.checked) {
+                cb.disabled = true;
+            }
+        });
+    } else {
+        meatballCheckboxes.forEach((cb) => {
+            cb.disabled = false;
+        });
     }
 }
 
-function increaseEditQuantity() {
-    currentQuantity++;
-    document.getElementById("edit-quantity").textContent = currentQuantity;
-    calculateEditTotal();
-}
+function addToCart() {
+    if (!currentItem) return;
 
-function decreaseEditQuantity() {
-    if (currentQuantity > 1) {
-        currentQuantity--;
-        document.getElementById("edit-quantity").textContent = currentQuantity;
-        calculateEditTotal();
+    const sizeSelection = document.querySelector('input[name="size"]:checked');
+
+    if (!sizeSelection) {
+        alert('กรุณาเลือกขนาดอาหาร');
+        return;
     }
-}
 
-function saveEditedItem() {
-    const itemIndex = window.editingItemIndex;
-    if (itemIndex === undefined) return;
-
-    const sizeSelection = document.querySelector(
-        'input[name="edit-size"]:checked',
-    );
-    const noodleType =
-        document.querySelector('input[name="edit-noodle"]:checked')?.value ||
-        "-";
+    const noodleType = currentItem.name === 'เกาเหลา' ? 'ไม่มีเส้น' : document.querySelector('input[name="noodle"]:checked')?.value || '';
 
     const selectedMeatballs = [];
-    document
-        .querySelectorAll('input[name="edit-meatball"]:checked')
-        .forEach((cb) => {
-            selectedMeatballs.push(cb.value);
-        });
+    document.querySelectorAll('input[name="meatball"]:checked').forEach((cb) => {
+        selectedMeatballs.push(cb.value);
+    });
 
     const selectedVegetables = [];
-    document
-        .querySelectorAll('input[name="edit-vegetable"]:checked')
-        .forEach((cb) => {
-            selectedVegetables.push(cb.value);
-        });
+    document.querySelectorAll('input[name="vegetable"]:checked').forEach((cb) => {
+        selectedVegetables.push(cb.value);
+    });
 
-    const specialNote = document.getElementById("edit-special-note").value;
+    const specialNote = document.getElementById('special-note').value;
 
     let total = 0;
-    if (sizeSelection.value === "normal") {
+    if (sizeSelection.value === 'normal') {
         total = currentItem.normalPrice * currentQuantity;
-    } else if (sizeSelection.value === "special") {
+    } else if (sizeSelection.value === 'special') {
         total = currentItem.specialPrice * currentQuantity;
     }
 
-    cart[itemIndex] = {
-        id: cart[itemIndex].id,
+    const cartItem = {
+        id: Date.now(),
         name: currentItem.name,
-        normalQty: sizeSelection.value === "normal" ? currentQuantity : 0,
-        specialQty: sizeSelection.value === "special" ? currentQuantity : 0,
+        normalQty: sizeSelection.value === 'normal' ? currentQuantity : 0,
+        specialQty: sizeSelection.value === 'special' ? currentQuantity : 0,
         normalPrice: currentItem.normalPrice,
         specialPrice: currentItem.specialPrice,
         noodleType: noodleType,
@@ -1595,8 +830,184 @@ function saveEditedItem() {
         total: total,
     };
 
-    saveCart();
+    cart.push(cartItem);
+    saveCartToSession(); // บันทึกลง sessionStorage
     updateCartDisplay();
-    updateCartCounter();
-    closeEditModal();
+    alert('เพิ่มเมนูลงตะกร้าเรียบร้อย!');
+    closeOptionModal();
+}
+
+function updateCartDisplay() {
+    // โหลด cart จาก sessionStorage ทุกครั้งที่ update
+    loadCartFromSession();
+    
+    const cartItemsContainer = document.getElementById('cart-items');
+    const cartTotalElement = document.getElementById('cart-total-price');
+    const cartCount = document.getElementById('cart-count');
+    
+    if (cartCount) {
+        cartCount.textContent = cart.length;
+    }
+
+    if (!cartItemsContainer || !cartTotalElement) {
+        return;
+    }
+
+    cartItemsContainer.innerHTML = '';
+    
+    if (cart.length === 0) {
+        cartItemsContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;">ไม่มีรายการในตะกร้า<br><a href="menu.html?table=' + currentTableNumber + '" style="color: #2196F3;">กลับไปเลือกเมนู</a></div>';
+        cartTotalElement.textContent = '0 บาท';
+        return;
+    }
+
+    let totalPrice = 0;
+
+    cart.forEach((item) => {
+        const cartItemElement = document.createElement('div');
+        cartItemElement.className = 'cart-item';
+
+        let itemDetails = [];
+        if (item.normalQty > 0) {
+            itemDetails.push(`ธรรมดา ${item.normalQty} ชาม`);
+        }
+        if (item.specialQty > 0) {
+            itemDetails.push(`พิเศษ ${item.specialQty} ชาม`);
+        }
+
+        cartItemElement.innerHTML = `
+            <div class="cart-item-header">
+                <div class="cart-item-name">${item.name}</div>
+                <div class="cart-item-image"></div>
+            </div>
+            <div class="cart-item-details">${itemDetails.join(', ')}</div>
+            <div class="cart-item-details">เส้น: ${item.noodleType}</div>
+            ${item.meatballs.length > 0 ? `<div class="cart-item-details">ลูกชิ้น: ${item.meatballs.join(', ')}</div>` : ''}
+            ${item.vegetables.length > 0 ? `<div class="cart-item-details">ผัก: ${item.vegetables.join(', ')}</div>` : ''}
+            ${item.note ? `<div class="cart-item-details">หมายเหตุ: ${item.note}</div>` : ''}
+            <div class="cart-item-price">${item.total} บาท</div>
+            <div class="cart-item-actions">
+                <button onclick="editCartItem(${item.id})" class="edit-cart-btn">แก้ไข</button>
+                <button onclick="deleteCartItem(${item.id})" class="delete-cart-btn">ลบ</button>
+            </div>
+        `;
+
+        cartItemsContainer.appendChild(cartItemElement);
+        totalPrice += item.total;
+    });
+
+    cartTotalElement.textContent = totalPrice + ' บาท';
+}
+
+function deleteCartItem(itemId) {
+    if (confirm('คุณต้องการลบรายการนี้หรือไม่?')) {
+        cart = cart.filter((item) => item.id !== itemId);
+        saveCartToSession(); // บันทึกลง sessionStorage
+        updateCartDisplay();
+    }
+}
+
+function editCartItem(itemId) {
+    const itemIndex = cart.findIndex((item) => item.id === itemId);
+    if (itemIndex === -1) return;
+
+    const item = cart[itemIndex];
+    cart.splice(itemIndex, 1);
+
+    currentItem = {
+        name: item.name,
+        normalPrice: item.normalPrice,
+        specialPrice: item.specialPrice,
+    };
+
+    document.getElementById('selected-menu-name').textContent = item.name;
+    document.getElementById('normal-price').textContent = item.normalPrice + ' บาท';
+    document.getElementById('special-price').textContent = item.specialPrice + ' บาท';
+
+    if (item.normalQty > 0) {
+        currentQuantity = item.normalQty;
+        document.getElementById('normal-size').checked = true;
+    } else if (item.specialQty > 0) {
+        currentQuantity = item.specialQty;
+        document.getElementById('special-size').checked = true;
+    }
+    document.getElementById('quantity').textContent = currentQuantity;
+
+    const noodleSection = document.querySelector('.option-group');
+    if (item.name === 'เกาเหลา') {
+        noodleSection.style.display = 'none';
+    } else {
+        noodleSection.style.display = 'block';
+        document.querySelectorAll('input[name="noodle"]').forEach((radio) => {
+            if (radio.value === item.noodleType) {
+                radio.checked = true;
+            }
+        });
+    }
+
+    document.querySelectorAll('input[name="meatball"]').forEach((cb) => {
+        cb.checked = item.meatballs.includes(cb.value);
+        cb.disabled = false;
+    });
+    limitMeatballSelection();
+
+    document.querySelectorAll('input[name="vegetable"]').forEach((cb) => {
+        cb.checked = item.vegetables.includes(cb.value);
+    });
+
+    document.getElementById('special-note').value = item.note;
+    calculateTotal();
+
+    const optionModal = document.getElementById('option-modal');
+    if (optionModal) {
+        optionModal.style.display = 'flex';
+    }
+}
+
+// ==================== Event Listeners ====================
+document.addEventListener('DOMContentLoaded', function () {
+    // โหลด cart จาก sessionStorage
+    loadCartFromSession();
+    
+    // โหลดข้อมูลเริ่มต้น
+    loadInitialData();
+
+    // Event listeners สำหรับการเปลี่ยนแปลงขนาด
+    const sizeRadios = document.querySelectorAll('input[name="size"]');
+    sizeRadios.forEach((radio) => {
+        radio.addEventListener('change', calculateTotal);
+    });
+
+    // Event listeners สำหรับการจำกัดลูกชิ้น
+    const meatballCheckboxes = document.querySelectorAll('input[name="meatball"]');
+    meatballCheckboxes.forEach((cb) => {
+        cb.addEventListener('change', limitMeatballSelection);
+    });
+
+    // อัปเดต cart display
+    updateCartDisplay();
+});
+
+// ==================== Navigation Functions (รักษาหมายเลขโต๊ะ) ====================
+function goToHome() {
+    window.location.href = `index.html?table=${currentTableNumber}`;
+}
+
+function goToMenu() {
+    window.location.href = `menu.html?table=${currentTableNumber}`;
+}
+
+function goToCart() {
+    window.location.href = `cart.html?table=${currentTableNumber}`;
+}
+
+// ==================== Utility Functions ====================
+function showAdminLogin() {
+    document.getElementById('qr-page').classList.remove('active');
+    document.getElementById('admin-login-page').classList.add('active');
+}
+
+function goBackToQR() {
+    document.getElementById('admin-login-page').classList.remove('active');
+    document.getElementById('qr-page').classList.add('active');
 }

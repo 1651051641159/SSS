@@ -133,14 +133,33 @@
             <div style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 8px;">
                 <h3>วิธีใช้ QR Code สำหรับแต่ละโต๊ะ</h3>
                 <p>สร้าง QR Code ที่มี URL รูปแบบ:</p>
-                <p><strong>https://your-replit-url.repl.co/?table=<span style="color: #e53935;">หมายเลขโต๊ะ</span></strong></p>
+                <p><strong>http://localhost/noodle-shop/?table=<span style="color: #e53935;">หมายเลขโต๊ะ</span></strong></p>
                 <p style="margin-top: 10px; font-size: 14px; color: #666;">
-                    เช่น โต๊ะที่ 5 ใช้ URL: https://your-replit-url.repl.co/?table=5
+                    เช่น โต๊ะที่ 5 ใช้ URL: http://localhost/noodle-shop/?table=5
                 </p>
             </div>
         </div>
     </div>
 
     <script src="script.js"></script>
+    <script>
+        // โหลดข้อมูลเมื่อเปิดหน้าแอดมิน
+        document.addEventListener('DOMContentLoaded', async function() {
+            // ตรวจสอบสถานะการล็อกอิน
+            try {
+                const result = await apiCall('/auth.php');
+                if (result.data && result.data.logged_in) {
+                    isAdminLoggedIn = true;
+                    document.getElementById('admin-login-page').classList.remove('active');
+                    document.getElementById('admin-dashboard').classList.add('active');
+                }
+            } catch (error) {
+                console.log('Not logged in');
+            }
+            
+            // โหลดข้อมูลเบื้องต้น
+            await loadInitialData();
+        });
+    </script>
 </body>
 </html>

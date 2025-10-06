@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test Page - ทดสอบระบบ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2196F3;
+            margin-bottom: 10px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        .status.checking {
+            background: #FFF9C4;
+            color: #F57F17;
+        }
+        .status.success {
+            background: #C8E6C9;
+            color: #2E7D32;
+        }
+        .status.error {
+            background: #FFCDD2;
+            color: #C62828;
+        }
+        .test-section {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2196F3;
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px 5px 5px 0;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #1976D2;
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        .result {
+            background: #263238;
+            color: #4CAF50;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            display: none;
+        }
+        .result.show {
+            display: block;
+        }
+        .success-text {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        .error-text {
+            color: #f44336;
+            font-weight: bold;
+        }
+        .info {
+            background: #E3F2FD;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2196F3;
+        }
+        .info h3 {
+            color: #1976D2;
+            margin-bottom: 10px;
+        }
+        input, select {
+            padding: 8px 12px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 API Test Page - ทดสอบระบบก๋วยเตี๋ยว</h1>
+        <div id="connection-status" class="status checking">
+            กำลังตรวจสอบการเชื่อมต่อ...
+        </div>
+
+        <div class="info">
+            <h3>📋 ข้อมูลการเชื่อมต่อ</h3>
+            <p><strong>API Base URL:</strong> <span id="api-url"></span></p>
+            <p><strong>ตรวจสอบ:</strong> XAMPP (Apache + MySQL) ต้องเปิดอยู่</p>
+            <p><strong>ฐานข้อมูล:</strong> noodle_shop ต้องสร้างและ import ไฟล์ .sql แล้ว</p>
+        </div>
+
+        <!-- Menu API Tests -->
+        <div class="test-section">
+            <h2>🍜 Menu API - ทดสอบระบบเมนู</h2>
+            <button onclick="testGetMenu()">ดึงรายการเมนูทั้งหมด</button>
+            <button onclick="testCreateMenu()">เพิ่มเมนูทดสอบ</button>
+            <div id="menu-result" class="result"></div>
+        </div>
+
+        <!-- Tables API Tests -->
+        <div class="test-section">
+            <h2>🪑 Tables API - ทดสอบระบบโต๊ะ</h2>
+            <button onclick="testGetTables()">ดึงรายการโต๊ะทั้งหมด</button>
+            <button onclick="testCreateTable()">เพิ่มโต๊ะทดสอบ</button>
+            <div id="tables-result" class="result"></div>
+        </div>
+
+        <!-- Orders API Tests -->
+        <div class="test-section">
+            <h2>📝 Orders API - ทดสอบระบบออเดอร์</h2>
+            <button onclick="testGetOrders()">ดึงรายการออเดอร์ทั้งหมด</button>
+            <button onclick="testCreateOrder()">สร้างออเดอร์ทดสอบ</button>
+            <div id="orders-result" class="result"></div>
+        </div>
+
+        <!-- Statistics API Tests -->
+        <div class="test-section">
+            <h2>📊 Statistics API - ทดสอบสถิติ</h2>
+            <select id="period-select">
+                <option value="daily">รายวัน</option>
+                <option value="weekly">รายสัปดาห์</option>
+                <option value="monthly">รายเดือน</option>
+                <option value="all" selected>ทั้งหมด</option>
+            </select>
+            <button onclick="testGetStatistics()">ดูสถิติการขาย</button>
+            <div id="stats-result" class="result"></div>
+        </div>
+
+        <!-- Auth API Tests -->
+        <div class="test-section">
+            <h2>🔐 Authentication API - ทดสอบระบบล็อกอิน</h2>
+            <input type="password" id="admin-password" placeholder="รหัสผ่าน (111223)" value="111223">
+            <button onclick="testLogin()">ทดสอบล็อกอิน</button>
+            <button onclick="testCheckAuth()">ตรวจสอบสถานะ</button>
+            <button onclick="testLogout()">ออกจากระบบ</button>
+            <div id="auth-result" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        // กำหนด API Base URL
+        const API_BASE_URL = window.location.origin + '/noodle-shop/api';
+        
+        // แสดง API URL
+        document.getElementById('api-url').textContent = API_BASE_URL;
+
+        // ฟังก์ชันเรียก API
+        async function callAPI(endpoint, method = 'GET', data = null) {
+            try {
+                const options = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
+
+                if (data && (method === 'POST' || method === 'PUT')) {
+                    options.body = JSON.stringify(data);
+                }
+
+                const response = await fetch(API_BASE_URL + endpoint, options);
+                const result = await response.json();
+                
+                return {
+                    success: true,
+                    status: response.status,
+                    data: result
+                };
+            } catch (error) {
+                return {
+                    success: false,
+                    error: error.message
+                };
+            }
+        }
+
+        // แสดงผลลัพธ์
+        function showResult(elementId, result, success) {
+            const element = document.getElementById(elementId);
+            element.classList.add('show');
+            
+            if (success) {
+                element.innerHTML = `<span class="success-text">✓ สำเร็จ!</span>\n\n` + 
+                    JSON.stringify(result, null, 2);
+            } else {
+                element.innerHTML = `<span class="error-text">✗ เกิดข้อผิดพลาด</span>\n\n` + 
+                    JSON.stringify(result, null, 2);
+            }
+        }
+
+        // ตรวจสอบการเชื่อมต่อเมื่อโหลดหน้า
+        async function checkConnection() {
+            const statusEl = document.getElementById('connection-status');
+            
+            try {
+                const result = await callAPI('/menu.php');
+                
+                if (result.success && result.data.success) {
+                    statusEl.className = 'status success';
+                    statusEl.textContent = '✓ เชื่อมต่อสำเร็จ! ระบบพร้อมใช้งาน';
+                } else {
+                    throw new Error('API ตอบกลับไม่ถูกต้อง');
+                }
+            } catch (error) {
+                statusEl.className = 'status error';
+                statusEl.innerHTML = '✗ ไม่สามารถเชื่อมต่อได้<br>' + 
+                    'กรุณาตรวจสอบ: XAMPP (Apache + MySQL) เปิดอยู่หรือไม่<br>' +
+                    'ฐานข้อมูล noodle_shop ถูกสร้างแล้วหรือไม่';
+            }
+        }
+
+        // Test Menu API
+        async function testGetMenu() {
+            const result = await callAPI('/menu.php?active_only=true');
+            showResult('menu-result', result, result.success);
+        }
+
+        async function testCreateMenu() {
+            const menuData = {
+                name: 'เมนูทดสอบ ' + new Date().getTime(),
+                normal_price: 45,
+                special_price: 55
+            };
+            const result = await callAPI('/menu.php', 'POST', menuData);
+            showResult('menu-result', result, result.success);
+            
+            if (result.success) {
+                setTimeout(() => alert('เพิ่มเมนูสำเร็จ! ลองกดดูรายการเมนูทั้งหมดอีกครั้ง'), 500);
+            }
+        }
+
+        // Test Tables API
+        async function testGetTables() {
+            const result = await callAPI('/tables.php');
+            showResult('tables-result', result, result.success);
+        }
+
+        async function testCreateTable() {
+            const tableNumber = Math.floor(Math.random() * 900) + 100;
+            const tableData = {
+                table_number: tableNumber
+            };
+            const result = await callAPI('/tables.php', 'POST', tableData);
+            showResult('tables-result', result, result.success);
+            
+            if (result.success) {
+                setTimeout(() => alert('เพิ่มโต๊ะสำเร็จ! โต๊ะหมายเลข: ' + tableNumber), 500);
+            }
+        }
+
+        // Test Orders API
+        async function testGetOrders() {
+            const result = await callAPI('/orders.php');
+            showResult('orders-result', result, result.success);
+        }
+
+        async function testCreateOrder() {
+            const orderData = {
+                table_number: 5,
+                total: 100,
+                items: [
+                    {
+                        name: 'ก๋วยเตี๋ยวน้ำใส',
+                        normalQty: 2,
+                        specialQty: 0,
+                        normalPrice: 50,
+                        specialPrice: 60,
+                        noodleType: 'เส้นเล็ก',
+                        meatballs: ['ลูกชิ้นหมู', 'ลูกชิ้นเนื้อ'],
+                        vegetables: ['ผักบุ้ง'],
+                        note: 'ทดสอบจาก API',
+                        total: 100
+                    }
+                ]
+            };
+            const result = await callAPI('/orders.php', 'POST', orderData);
+            showResult('orders-result', result, result.success);
+            
+            if (result.success) {
+                setTimeout(() => alert('สร้างออเดอร์สำเร็จ! หมายเลข: ' + result.data.data.order_number), 500);
+            }
+        }
+
+        // Test Statistics API
+        async function testGetStatistics() {
+            const period = document.getElementById('period-select').value;
+            const result = await callAPI('/statistics.php?period=' + period);
+            showResult('stats-result', result, result.success);
+        }
+
+        // Test Auth API
+        async function testLogin() {
+            const password = document.getElementById('admin-password').value;
+            const result = await callAPI('/auth.php', 'POST', { password: password });
+            showResult('auth-result', result, result.success);
+        }
+
+        async function testCheckAuth() {
+            const result = await callAPI('/auth.php');
+            showResult('auth-result', result, result.success);
+        }
+
+        async function testLogout() {
+            const result = await callAPI('/auth.php', 'DELETE');
+            showResult('auth-result', result, result.success);
+        }
+
+        // ตรวจสอบการเชื่อมต่อเมื่อโหลดหน้า
+        window.addEventListener('DOMContentLoaded', checkConnection);
+    </script>
+</body>
+</html>

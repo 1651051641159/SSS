@@ -11,9 +11,9 @@
     <div id="menu-page" class="page active">
         <div class="container">
             <div class="header">
-                <a href="index.html" class="close-btn">←</a>
+                <a href="javascript:history.back()" class="close-btn">←</a>
                 <h2>รายการเมนู</h2>
-                <a href="cart.html" class="cart-link">
+                <a href="javascript:goToCart()" class="cart-link">
                     <span class="cart-icon">🛒</span>
                     <span id="cart-count" class="cart-count">0</span>
                 </a>
@@ -22,61 +22,14 @@
             <div class="menu-list">
                 <div class="menu-category">
                     <h3>ก๋วยเตี๋ยว</h3>
-                    
-                    <div class="menu-item" onclick="selectMenuItem('ก๋วยเตี๋ยวน้ำใส')">
-                        <div class="menu-info">
-                            <h4>ก๋วยเตี๋ยวน้ำใส</h4>
-                            <p class="price">ธรรมดา 50 / พิเศษ 60 บาท</p>
-                        </div>
-                        <div class="menu-image"></div>
-                    </div>
-                    
-                    <div class="menu-item" onclick="selectMenuItem('ก๋วยเตี๋ยวต้มยำ')">
-                        <div class="menu-info">
-                            <h4>ก๋วยเตี๋ยวต้มยำ</h4>
-                            <p class="price">ธรรมดา 50 / พิเศษ 60 บาท</p>
-                        </div>
-                        <div class="menu-image"></div>
-                    </div>
-                    
-                    <div class="menu-item" onclick="selectMenuItem('ก๋วยเตี๋ยวเย็นตาโฟ')">
-                        <div class="menu-info">
-                            <h4>ก๋วยเตี๋ยวเย็นตาโฟ</h4>
-                            <p class="price">ธรรมดา 50 / พิเศษ 60 บาท</p>
-                        </div>
-                        <div class="menu-image"></div>
-                    </div>
-                    
-                    <div class="menu-item" onclick="selectMenuItem('ก๋วยเตี๋ยวแห้ง')">
-                        <div class="menu-info">
-                            <h4>ก๋วยเตี๋ยวแห้ง</h4>
-                            <p class="price">ธรรมดา 50 / พิเศษ 60 บาท</p>
-                        </div>
-                        <div class="menu-image"></div>
-                    </div>
-                    
-                    <div class="menu-item" onclick="selectMenuItem('ลูกชิ้นลวก หมู/เนื้อ/เอ็น')">
-                        <div class="menu-info">
-                            <h4>ลูกชิ้นลวก หมู/เนื้อ/เอ็น</h4>
-                            <p class="price">ธรรมดา 50 / พิเศษ 60 บาท</p>
-                        </div>
-                        <div class="menu-image"></div>
-                    </div>
-                    
-                    <div class="menu-item" onclick="selectMenuItem('เกาเหลา')">
-                        <div class="menu-info">
-                            <h4>เกาเหลา</h4>
-                            <p class="price">ธรรมดา 50 / พิเศษ 60 บาท</p>
-                        </div>
-                        <div class="menu-image"></div>
-                    </div>
+                    <!-- เมนูจะถูกโหลดจาก API โดย script.js -->
                 </div>
             </div>
             
             <div class="bottom-nav">
-                <a href="menu.html" class="nav-item active">เมนู</a>
-                <a href="cart.html" class="nav-item">ตะกร้า</a>
-                <a href="index.html" class="nav-item">หน้าแรก</a>
+                <a href="javascript:goToMenu()" class="nav-item active">เมนู</a>
+                <a href="javascript:goToCart()" class="nav-item">ตะกร้า</a>
+                <a href="javascript:goToHome()" class="nav-item">หน้าแรก</a>
             </div>
         </div>
     </div>
@@ -192,5 +145,12 @@
     </div>
 
     <script src="script.js"></script>
+    <script>
+        // โหลดเมนูจาก API เมื่อเปิดหน้า
+        document.addEventListener('DOMContentLoaded', function() {
+            loadMenuFromAPI();
+            updateCartDisplay();
+        });
+    </script>
 </body>
 </html>
